@@ -22,7 +22,7 @@ void plant_params_default(PlantParams& pp);
 /**
  * @brief Advance plant by dt with force u using RK4 (force held constant).
  * Dynamics: Florian, "Correct equations for the dynamics of the cart-pole
- * system" (2007), frictionless; same form as Barto/Sutton/Anderson (1983).
+ * system" (2005), frictionless; same form as Barto/Sutton/Anderson (1983).
  */
 void plant_step(const PlantParams& pp, PlantState& s, F64 u, F64 dt);
 

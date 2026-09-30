@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(cartpole_fsw CXX)
 set(CMAKE_CXX_STANDARD 14)   # F´ v4 requires C++14; the core is also C++11-clean
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

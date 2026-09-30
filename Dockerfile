@@ -1,6 +1,6 @@
 # Pinned software constraint for reproducible runs.
-# Same image on Docker-for-Mac (arm64), Docker on Jetson/Pi (arm64), or amd64 CI:
-#   same GCC, same glibc/libm, same flags  =>  bit-identical CSV on the same architecture.
+# Validated on the Mac (arm64) via Docker-for-Mac: the container's CSV output is bit-identical to Pi 5 and
+# Jetson Orin running on metal (same aarch64-linux environment class). The boards run metal; Docker was not run on them.
 # Cross-architecture (arm64 vs amd64) differs only at libm ULP level; the fault list and outcomes match.
 #
 #   docker build -t cartpole .

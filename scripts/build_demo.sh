@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build_demo.sh: build and verify the cart-pole controller on metal (macOS, Raspberry Pi OS, Jetson L4T, Debian/Ubuntu).
-#   bash scripts/build_demo.sh                  detect -> deps (offers installs, y/N) -> build -> verify -> stamp. Pure C++.
+#   bash scripts/build_demo.sh                  detect -> deps (offers installs, y/N) -> build -> stamp -> verify. Pure C++.
 #   --force-default   every y/N is yes            --no-install   print install commands, never run them
 #   --visual          matplotlib window after     --serve        LAN viewer on :8080 after (bench/serve.py)
 #   --demo            host-aware: Mac window, Pi/Jetson LAN viewer
