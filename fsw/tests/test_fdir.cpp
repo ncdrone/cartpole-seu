@@ -68,8 +68,9 @@ int main() {
         for (U32 i = 0; i < 20U; ++i) {                              // 0.6 rad: BALANCE holds (exit 0.75), raw law saturates
             tick(rt, 0.6f, o, t);
             assert(runtime_fdir(rt) == FDIR_DEGRADED);
+            assert(t.mode == MODE_BALANCE);
             assert(std::fabs(o.force) <= lim);
-            if (o.saturated) saw_sat = true;
+            if (o.saturated && std::fabs(o.force) == lim) saw_sat = true;
         }
         assert(saw_sat);
         clean_ticks(rt, 5U, 0.02f);
@@ -125,6 +126,25 @@ int main() {
             assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U);
         }
         std::printf("(h) swing inhibit ok\n");
+    }
+    { // (i) window rollover: a detection long after an earlier one is a fresh first detection, not SAFE
+        Runtime rt; init(rt); tick(rt, 0.02f, o, t);
+        double_flip(rt, 2); tick(rt, 0.02f, o, t); assert(runtime_fdir(rt) == FDIR_RECOVERING);
+        clean_ticks(rt, 300U, 0.02f);
+        assert(runtime_fdir(rt) == FDIR_NOMINAL);
+        double_flip(rt, 2); tick(rt, 0.02f, o, t);
+        assert(t.det == DET_DED);
+        assert(runtime_fdir(rt) == FDIR_RECOVERING);
+        std::printf("(i) window rollover ok\n");
+    }
+    { // (j) first fault after a DEGRADED -> NOMINAL exit is RECOVERING, not SAFE
+        Runtime rt; reach_degraded(rt);
+        clean_ticks(rt, cfg::FDIR_DEGRADED_CLEAN_TICKS, 0.02f);
+        assert(runtime_fdir(rt) == FDIR_NOMINAL);
+        double_flip(rt, 2); tick(rt, 0.02f, o, t);
+        assert(t.det == DET_DED);
+        assert(runtime_fdir(rt) == FDIR_RECOVERING);
+        std::printf("(j) post-degraded fault ok\n");
     }
     std::printf("ALL FDIR TESTS PASSED\n");
     return 0;

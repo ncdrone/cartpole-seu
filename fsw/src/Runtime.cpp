@@ -74,8 +74,9 @@ static bool reload_golden(Runtime& rt, Params& p, State& s) {
 static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm& t) {
     if (t.det == DET_NONE || t.det == DET_SEC) t.det = static_cast<U8>(d);
     rt.det_total++;
-    if (rt.tick - rt.window_start > cfg::FDIR_WINDOW_TICKS) { rt.window_start = rt.tick; rt.det_count = 0U; }
+    if (rt.tick - rt.window_start > cfg::FDIR_WINDOW_TICKS) { rt.window_start = rt.tick; rt.det_count = 0U; rt.det_count_inv = ~0U; }   // window expired: re-anchor, reset both words
     if ((rt.det_count ^ rt.det_count_inv) != 0xFFFFFFFFU) { fdir_set(rt, FDIR_SAFE); return; }   // counter corrupt
+    if (rt.det_count == 0U) rt.window_start = rt.tick;                                           // window anchors at the first detection
     rt.det_count++; rt.det_count_inv = ~rt.det_count;
     if (rt.det_count >= cfg::FDIR_MAX_DETECTIONS) { fdir_set(rt, FDIR_SAFE); return; }           // persistence
     const FdirState prev = runtime_fdir(rt);
@@ -136,7 +137,7 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
     }
     if (runtime_fdir(rt) == FDIR_DEGRADED) {
         // DEGRADED law: swing-up inhibited, output clamp halved (applied after step(), not inside it)
-        if (s.mode == MODE_SWING) { out.force = cfg::SAFE_FORCE_N; out.fault = 1U; }
+        if (s.mode == MODE_SWING) { out.force = cfg::SAFE_FORCE_N; out.fault = 1U; out.saturated = 0U; }
         const F32 lim = cfg::FORCE_LIMIT_N * cfg::DEGRADED_CLAMP_FRAC;
         if (out.force > lim) { out.force = lim; out.saturated = 1U; }
         else if (out.force < -lim) { out.force = -lim; out.saturated = 1U; }
