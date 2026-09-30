@@ -78,7 +78,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
   <section>
     <div class="sec">p1 · where the code runs</div>
     <h2>System context</h2>
-    <p class="lede">Three run paths, one flight core. The dashed line is the flight/sim boundary: only typed frames cross it.</p>
+    <p class="lede">Three run paths, one flight core. The dashed line is the flight/sim boundary, designed so that only typed frames cross it; today the harness still links the core and the injector writes the store directly.</p>
     <figure>
     <svg viewBox="0 0 1060 580" role="img" aria-label="System context: three run paths (Mac metal, Pi or Jetson metal with a LAN viewer, Docker pinned image validated on the Mac) build the same source with the same flags into one flight core and one sim harness. Across the dashed flight/sim boundary, SensorFrame goes in; ActuatorCmd, telemetry and events come out; the harness writes CSV. The injector lives on the sim side and XORs bits of the encoded store, a check byte, the CRC word, a decoded copy or a sensor sample.">
       <defs>
@@ -112,7 +112,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
       <!-- boundary -->
       <path class="bnd" d="M520,176V556"/>
       <text class="dm cap end" x="510" y="190">FLIGHT</text><text class="dm cap" x="530" y="190">SIM</text>
-      <text class="s mid" x="520" y="574">flight / sim boundary: only typed frames cross it</text>
+      <text class="s mid" x="520" y="574">flight / sim boundary (designed): typed frames only</text>
       <!-- flight core -->
       <rect class="bx" x="13" y="196" width="387" height="352" rx="3"/>
       <text class="t" x="27" y="218">FLIGHT CORE <tspan class="dm">· fsw/ today, flight/ after the split</tspan></text>
@@ -156,7 +156,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
       <path class="ln" d="M400,436H640" marker-end="url(#p1a)"/>
       <text x="408" y="428">tlm + events</text><text class="s" x="408" y="450">det, fdir, sec</text>
     </svg>
-    <figcaption><b>Claim:</b> there is one flight core, and the three run paths only change the toolchain around it. Everything that crosses the dashed line is a typed frame: SensorFrame in; ActuatorCmd, telemetry and events out; the harness turns telemetry into CSV. The injector is a runtime flag of the sim-side harness, so the flight object code is the same with injection on or off. <b>Gap, stated:</b> today <code>Plant.cpp</code> is still linked into <code>libfsw.a</code> and the harness is <code>fsw/src/main.cpp</code>; the flight/ vs sim/ split and the typed frames are designed, not built. Docker on the Mac reproduces the hash the Pi and Jetson produce on metal; Docker on the boards was not run (same image validated on the Mac; boards run metal).</figcaption>
+    <figcaption><b>Claim:</b> there is one flight core, and the three run paths only change the toolchain around it. In the design, everything that crosses the dashed line is a typed frame: SensorFrame in; ActuatorCmd, telemetry and events out; the harness turns telemetry into CSV. The injector is a runtime flag of the sim-side harness, so the flight object code is the same with injection on or off. <b>Gap, stated:</b> today <code>Plant.cpp</code> is still linked into <code>libfsw.a</code> and the harness is <code>fsw/src/main.cpp</code>; the injector writes the encoded store directly; the flight/ vs sim/ split and the typed frames are designed, not built. Docker on the Mac reproduces the hash the Pi and Jetson produce on metal; Docker on the boards was not run (same image validated on the Mac; boards run metal).</figcaption>
     </figure>
   </section>
 
@@ -373,7 +373,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
       <text class="s" x="180" y="636">−47.37f · <tspan class="r">bit 31</tspan> → +47.37: pushes the pole over, fell 2.10 s · <tspan class="r">bit 30</tspan> → −1.4e−37: no pole feedback, fell 5.19 s · bit 0: masked</text>
       <text class="s" x="13" y="664">Of 640 single-bit flips in Params, two are non-finite (alpha and mM bit 30 → +Inf). Every baseline SDC flip hit bit 24–31 (sign or exponent).</text>
     </svg>
-    <figcaption><b>Claim:</b> <code>Params</code> is twenty 32-bit words, and every baseline flip that the campaign counts as silent corruption landed in bits 24–31 of a word (sign or high exponent); across all 640 single-bit flips, no mantissa flip did. The force limit and the safe force are <code>cfg::</code> constants, so no flip in the block can move the clamp. Word values are the golden (on-board K; CRC-32C over the 80 B = 0x9E919ECA, pinned at init). Check bytes 0x40 and 0x59 are the shipped Hsiao code (<code>fsw/src/Protect.cpp</code>, data columns = the first 32 weight-3 7-bit values in ascending order). Fall times are measured runs of <code>cartpole_baseline --flip</code> from θ₀ = 0.05 rad, flip at tick 100.</figcaption>
+    <figcaption><b>Claim:</b> <code>Params</code> is twenty 32-bit words, and every baseline flip that the campaign counts as silent corruption landed in bits 24–31 of a word (sign or high exponent); across all 640 single-bit flips, no mantissa flip did. The force limit and the safe force are <code>cfg::</code> constants, so no flip in the block can move the clamp. Word values are the golden (on-board K; CRC-32C over the 80 B = 0x9E919ECA, pinned at init). Check bytes 0x40 and 0x59 are the shipped Hsiao code (<code>fsw/src/Protect.cpp</code>, data columns = the first 32 weight-3 7-bit values in ascending order), computed by a codec probe that is not shipped; about 20 lines linking <code>Protect.cpp</code> reproduce it. Fall times are measured runs of <code>cartpole_baseline --flip</code> from θ₀ = 0.05 rad, flip at tick 100.</figcaption>
     </figure>
   </section>
 
@@ -432,7 +432,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
       <circle class="mg" cx="850" cy="468" r="5"/><text x="860" y="472">50 clean ticks → NOMINAL</text>
       <circle class="mg" cx="460" cy="490" r="5"/><text x="470" y="494">u at tick 100 from reloaded gains: no bad command</text>
     </svg>
-    <figcaption><b>Claim:</b> one flip is corrected with zero effect; two are refused and replaced; three that fool SECDED are caught by the CRC and, in this case, also by the range table. (For k2 bits 0+1+21 the miscorrected gain is −78.75, inside the band, and the CRC alone catches it.) In every protected story the command at tick 100 already comes from correct gains, and detection latency is zero ticks. <b>Provenance:</b> the (a) baseline lane is <code>cartpole_baseline --theta0 0.05 --seconds 6 --flip k2:30 --flip-tick 100</code> (cart off the rail at 4.91 s, pole falls at 5.19 s, fault flag 0). The protected lanes are <code>cartpole_demo</code> runs from the same start with each flip at tick 100: <code>det</code> 1, 2 and 3 at tick 100, a reload in (b) and (c), NOMINAL again at tick 150. Syndromes and CRCs come from a probe that links the shipped <code>fsw/src/Protect.cpp</code> (how-it-works §3).</figcaption>
+    <figcaption><b>Claim:</b> one flip is corrected with zero effect; two are refused and replaced; three that fool SECDED are caught by the CRC and, in this case, also by the range table. (For k2 bits 0+1+21 the miscorrected gain is −78.75, inside the band, and the CRC alone catches it.) In every protected story the command at tick 100 already comes from correct gains, and detection latency is zero ticks. <b>Provenance:</b> the (a) baseline lane is <code>cartpole_baseline --theta0 0.05 --seconds 6 --flip k2:30 --flip-tick 100</code> (cart off the rail at 4.91 s, pole falls at 5.19 s, fault flag 0). The protected lanes are <code>cartpole_demo</code> runs from the same start with each flip at tick 100: <code>det</code> 1, 2 and 3 at tick 100, a reload in (b) and (c), NOMINAL again at tick 150. Syndromes and CRCs come from a probe that links the shipped <code>fsw/src/Protect.cpp</code>; the probe is not shipped, and about 20 lines linking <code>Protect.cpp</code> reproduce it (how-it-works §3).</figcaption>
     </figure>
   </section>
 
@@ -452,7 +452,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
       <rect class="bx" x="40" y="170" width="230" height="100" rx="4"/>
       <text class="th" x="54" y="196">NOMINAL</text><text class="s" x="54" y="216">swing-up → LQR, full law</text><text class="s" x="54" y="232">every detector armed</text><text class="dm" x="54" y="254">code 0x5A5A5A5A</text>
       <rect class="bxo" x="430" y="30" width="230" height="100" rx="4"/>
-      <text class="th o" x="444" y="56">RECOVERING</text><text class="s" x="444" y="76">golden reloaded, θ̇ reseeded</text><text class="s" x="444" y="92">integrator reset (disabled)</text><text class="dm" x="444" y="114">code 0xA5A5A5A5</text>
+      <text class="th o" x="444" y="56">RECOVERING</text><text class="s" x="444" y="76">reload golden, reseed θ̇/integ</text><text class="s" x="444" y="92">1st input reject: no reload</text><text class="dm" x="444" y="114">code 0xA5A5A5A5</text>
       <rect class="bx" x="430" y="300" width="230" height="100" rx="4"/>
       <text class="th" x="444" y="326">DEGRADED</text><text class="s" x="444" y="346">swing-up inhibited,</text><text class="s" x="444" y="362">clamp halved (10 N)</text><text class="dm" x="444" y="384">code 0x3C3C3C3C</text>
       <rect class="bxs" x="780" y="170" width="220" height="100" rx="4"/><rect class="bxs" x="784" y="174" width="212" height="92" rx="3"/>
@@ -499,7 +499,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
   <section>
     <div class="sec">status · what exists vs what is drawn</div>
     <h2>Built today vs designed</h2>
-    <p class="lede">Everything drawn in P2–P5 is built and runs in <code>cartpole_demo</code>. Only the flight/sim library split and typed frames of P1 are designed, not built. The measured numbers come from the binaries, <code>sim/campaign.py</code> and the back-tests; the codec values from a probe that links the shipped <code>Protect.cpp</code>.</p>
+    <p class="lede">Everything drawn in P2–P5 is built and runs in <code>cartpole_demo</code>. Only the flight/sim library split and typed frames of P1 are designed, not built. The measured numbers come from the binaries, <code>sim/campaign.py</code> and the back-tests; the codec values from a probe that links the shipped <code>Protect.cpp</code> (not shipped; about 20 lines reproduce it).</p>
     <div class="split">
       <div class="col">
         <div class="k"><span class="dot g"></span>built · runs today</div>
@@ -529,7 +529,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
     </div>
   </section>
 
-  <div class="foot">Sources: <code>fsw/include/fsw/Controller.hpp</code>, <code>Config.hpp</code>, <code>Runtime.hpp</code>, <code>fsw/src/Runtime.cpp</code>, <code>Protect.cpp</code>, <code>main.cpp</code> (structs, defaults, FDIR, codec, CSV columns, injector); <code>cartpole_baseline</code> and <code>cartpole_demo --flip</code> runs (P3, P4); a probe linking <code>Protect.cpp</code> (check bytes, syndromes, CRCs); <code>sim/campaign.py</code> and <code>--deadline</code> (P2 time strip, status); <code>docs/how-it-works.html</code> §2–§5; <code>docs/GLOSSARY.md</code> §7 (names).</div>
+  <div class="foot">Sources: <code>fsw/include/fsw/Controller.hpp</code>, <code>Config.hpp</code>, <code>Runtime.hpp</code>, <code>fsw/src/Runtime.cpp</code>, <code>Protect.cpp</code>, <code>main.cpp</code> (structs, defaults, FDIR, codec, CSV columns, injector); <code>cartpole_baseline</code> and <code>cartpole_demo --flip</code> runs (P3, P4); a probe linking <code>Protect.cpp</code>, not shipped, about 20 lines (check bytes, syndromes, CRCs); <code>sim/campaign.py</code> and <code>--deadline</code> (P2 time strip, status); <code>docs/how-it-works.html</code> §2–§5; <code>docs/GLOSSARY.md</code> §7 (names).</div>
 </div>
 </body>
 </html>

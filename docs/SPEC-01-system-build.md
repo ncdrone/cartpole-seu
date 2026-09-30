@@ -28,7 +28,7 @@ Ship a **small, runnable system** (not a one-file toy) that:
 | Tier | Environment | Status | Notes |
 |------|-------------|--------|-------|
 | **A — Primary (metal)** | macOS on Apple Silicon (measured; Intel expected, untested); Apple Clang; CMake ≥ 3.13; **C++14** | Required | `bash scripts/build_demo.sh`: detect, dependency check, build, stamp, verify. Missing packages are offered with y/N confirmation (`--force-default` answers yes; `--no-install` only prints). `--visual` opens the window viewer. |
-| **B — Boards (metal)** | Raspberry Pi 5 (Pi OS) and NVIDIA Jetson Orin (L4T), aarch64, g++ | Measured, not required | Same script; `--demo` ends by starting the LAN viewer (`bench/serve.py`) so a browser on the bench can drive it. Both boards reproduce the `aarch64-linux` golden bit-exact (README table). |
+| **B — Boards (metal)** | Raspberry Pi 5 (Pi OS) and NVIDIA Jetson Orin (L4T), aarch64, g++ | Measured, not required | Same script; `--demo` ends by starting the LAN viewer (`bench/serve.py`) so a browser on the bench can drive it. Both boards were rebuilt from 703f03b on 2026-09-30, ran the full `run_tests.sh` suite and the campaign on metal, and reproduced the `aarch64-linux` goldens (recorded at 9a26e5f) bit-exact (README table). |
 | **C — Pinned constraint (Docker)** | `Dockerfile`, Debian bookworm pinned by tag and digest | Optional appendix | `docker build -t cartpole . && docker run --rm cartpole tests`. Docker on the Mac reproduces the `aarch64-linux` golden that the boards produce on metal; Docker on the boards was not run (same image validated on the Mac; boards run metal). Never installed by our scripts. |
 | **D — Stretch** | F´ component on the Pi | One paragraph | The controller becomes a passive F´ component invoked from a 100 Hz rate group. Input port `SensorFrame` carries x, xdot, theta, thetadot, tick and validity bits; output port `ActuatorCmd` carries force, a sequence number and a CRC over both, verified by the actuator component. Telemetry channels are `sec_total`, `reload_total`, `det_total` and `fdir_state`, with one throttled event per FDIR transition. Parameters (Q, R, model constants) come from `Svc::PrmDb`, whose CRC-checked file is the golden image. The health ping is answered only while FDIR is not SAFE, so `Svc::Health` stops stroking the hardware watchdog when the controller has given up. |
 
@@ -125,7 +125,7 @@ Sensors/plant state: the input plausibility guard checks each sample; the primar
 - Detectable uncorrectable: **do not** trust data → recovery policy (§4).
 - Limitation: this code reports SEC on 60% of 3-bit patterns in a word (5,500 of 9,139; extended Hamming would be 69%) and hands back a wrong word. The CRC exists to catch that: at HD = 6 a miscorrected triple (at most four wrong bits) cannot pass it (see docs/how-it-works.html §3).
 
-**Ordering:** decode and correct every word → CRC-32C over the corrected plaintext → range table → use. One `det` code per tick: the first detector names the event, so nothing is double-counted.
+**Ordering:** decode and correct every word → CRC-32C over the corrected plaintext → range table → use. The CSV carries one `det` code per tick, named by the first detector other than SEC: a SEC code is overwritten by a later detector in the same tick (a miscorrected triple logs `det` 3 CRC and still increments `sec`). Several detectors can fire in one tick (for example a dual-execution mismatch followed by a non-finite output); each calls `on_detection()`, so the detection counters can rise by 2 in that tick.
 
 ## 7. Build flags / "include simulated error in the build"
 
@@ -169,7 +169,7 @@ With that hardware the software layers that stay valuable are the compute-window
 - [x] Single-bit flip in every `Params` word through the protected build: corrected, command unchanged (640/640)  
 - [x] Double-bit flip: DED → verified golden reload → RECOVERING → NOMINAL (60/60); the unprotected build fails the same flips (6/60 SDC)  
 - [ ] Range table on its own: not tested with the codes disabled (no such build). Measured offline with the shipped `params_in_range()`: it rejects 38 of the 42 baseline SDC flips and misses alpha bits 26–29, which stay in (0, 1]  
-- [x] Dual execution: a corruption of the decoded local copy between decode and `step()` is detected (13 of 40; the other 27 hit parameters the balance law does not read)  
+- [x] Dual execution: a corruption of the decoded local copy between decode and `step()` is detected (13 of 40; the other 27 hit fields that do not change the balance command: swing-up and model constants, the disabled integrator, a raised exit threshold; 4 of them, ki:31, ilim:30, ilim:31 and swexit:30, are read and leave the command unchanged)  
 - [x] Stall: k skipped ticks with ZOH; measured recovery deadline reported against the 300 ms budget (`campaign.py --deadline`)  
 - [x] FDIR transitions unit-tested (`test_fdir` (a)–(o)); state word and counters (v, ~v). The transitions are an if/else in `on_detection()`, not a table  
 - [ ] README states the fault model, the limitations, the criterion, hours spent and what was cut (hours pending)  

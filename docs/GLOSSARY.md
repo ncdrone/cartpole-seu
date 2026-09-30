@@ -89,11 +89,11 @@
 | **Fault space** | | The set of (location, bit, time) an injection can target. Must be stated for any rate to mean anything. |
 | **Masked** | | Fault happened, nothing detected it, and the outcome still met success bounds (feedback absorbed it, or the bit was never read). |
 | **Corrected** | | SECDED fixed a single-bit error and the run succeeded. |
-| **Recovered** | | Detected (checksum or DED), recovery action fired (reload/reset), run still met success after a transient. |
+| **Recovered** | | The run still met success after a detection other than a bare SEC correction: a golden reload, an input reject held without a reload, a stall (on the baseline, the harness marks stall ticks), or it ended DEGRADED, or latched SAFE with the pole still up (`classify()` in `sim/campaign.py`). |
 | **SDC** | Silent Data Corruption | Wrong result with no detection. The worst outcome. |
-| **DUE** | Detected Unrecoverable Error | Detected but could not continue: abort, NaN, latched safe state with the pole down. "DUE" in `sim/campaign.py`, which also has "detected-but-failed" (detected, reloaded, still failed the success check). |
+| **DUE** | Detected Unrecoverable Error | Detected but could not continue: abort, NaN, latched safe state with the pole down. "DUE" in `sim/campaign.py`, which also has "detected-but-failed" (detected, with or without a reload, and still failed the success check). |
 | **AVF** | Architectural Vulnerability Factor | Fraction of time a bit matters to the final result. The idea behind weighting a campaign by exposure, not just by bit count. |
-| **Dead bit** | | A bit that is never read or is overwritten before use; injecting into it always looks "masked". The fault-injection review counted roughly half of our candidate bits as dead under the default config; the 27 masked compute-window flips of campaign set E are the same effect. |
+| **Dead bit** | | A bit that is never read or is overwritten before use; injecting into it always looks "masked". The fault-injection review counted roughly half of our candidate bits as dead under the default config. Of the 27 masked compute-window flips of campaign set E, 23 hit fields the balance law never reads (the same effect); the other 4 (ki:31, ilim:30, ilim:31, swexit:30) are read but do not change the command. |
 | **Activated** | | The corrupted value was actually read after injection. Only activated faults should count in rates. |
 | **Latent (at end of run)** | | Corruption still present when the run ended without having caused failure. Distinct from masked. |
 | **Negative control** | | Injecting where protection does not reach, to show the mechanism is not magic. |

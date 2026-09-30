@@ -89,7 +89,7 @@ Use the standard architectural-vulnerability vocabulary (Mukherjee et al.). Each
 | **Recovered** | Pole OK after any other detection (reload, an input reject held without reload, a stall), or ended DEGRADED, or latched SAFE with the pole still up |
 | **SDC** | Pole not OK, nothing detected |
 | **DUE** | The binary crashed, or latched SAFE with the pole down |
-| **Detected-but-failed** | Detected and reloaded, pole still not OK |
+| **Detected-but-failed** | Detected (with or without a reload), pole still not OK |
 
 The baseline has no detectors; its stall runs count as recovered only because the harness marks stall ticks `det` = STALL. Report counts + example traces (CSV + short plots).
 
@@ -122,7 +122,7 @@ Optional one-liner for slides: *“We treat soft errors as a measurable software
 | `sim/campaign.py` | Sets A–H through both builds; `--deadline` stall sweep; exits non-zero on a protected SDC in sets A–E or a baseline with no failure |
 | `scripts/run_tests.sh` | Everything above in order, non-zero exit on the first failure; injector sanity (`k2:31` must drop the pole on the baseline and be corrected on the protected build; `k2:30+31` must give DED and a reload) |
 
-**Campaign scope.** The verification campaign ships: exhaustive over all 20 `Params` words × 32 bits in both builds, plus double-bit, check-bit, CRC-word, compute-window, sensor, `State` and stall sets (1,640 runs). A sampled assessment campaign over all controller-owned state with confidence intervals is deferred; two of its ideas cost nothing and are adopted: the same fault list for every build, and a fixed post-injection observation window instead of a fixed run length.
+**Campaign scope.** The verification campaign ships: exhaustive over all 20 `Params` words × 32 bits in both builds, plus double-bit, check-bit, CRC-word, compute-window, sensor, `State` and stall sets (1,640 runs). A sampled assessment campaign over all controller-owned state with confidence intervals is deferred; two of its ideas cost nothing and are adopted: the same fault list for every build, and a fixed injection tick (100) with a fixed run length (6 s), so every run has the same 5 s post-injection observation window.
 
 Exit codes: 0 = campaign thresholds met; non-zero = regression (a protected SDC in sets A–E, or a baseline that never fails).
 

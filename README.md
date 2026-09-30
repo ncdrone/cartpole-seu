@@ -54,7 +54,7 @@ Two ways to run the same code; only the toolchain around `fsw/` changes.
 
 | Path | Where | Command |
 |---|---|---|
-| Metal | Mac, Raspberry Pi 5, Jetson Orin (the boards' evidence is the committed `aarch64-linux` goldens) | `bash scripts/build_demo.sh` |
+| Metal | Mac, Raspberry Pi 5, Jetson Orin (the boards' evidence is a full re-run at 703f03b on 2026-09-30 that matched the committed `aarch64-linux` goldens bit-exact) | `bash scripts/build_demo.sh` |
 | Docker | Anywhere Docker runs; same image validated on the Mac, boards run metal | `docker build -t cartpole . && docker run --rm cartpole` |
 
 ```
@@ -75,7 +75,7 @@ The build needs no Python and emits CSV. `run_tests.sh` uses python3 (standard l
 
 `build_demo.sh` runs, in order: detect (host, arch, board, libc, environment class `arm64-darwin` or `aarch64-linux`); deps (compiles and runs a three-line file rather than trusting `command -v` for the compiler; CMake by presence); build (Release, `-std=c++14 -O2 -ffp-contract=off -fno-exceptions -fno-rtti`, warnings as errors); stamp `fsw/build/build_info.json`; verify (unit tests, a 1 s demo with the CSV schema checked, golden comparison: bit-exact within an environment class).
 
-`run_tests.sh` gates seven steps and exits non-zero on the first failure: (1) the three unit tests; (2) demo CSV schema; (3) the bit-exact golden for this environment class; (4) injector sanity: `k2:31` must drop the pole on the baseline and be corrected by SEC at tick 100 on the protected build, and `k2:30+31` must give DED and a verified golden reload; (5) the full 1,640-run campaign, which fails if the protected build shows an SDC in sets A-E or the baseline shows no failure; (6) the repro hash against this environment class's golden, then the basin and mistune back-tests, whose stats are printed but not gated (skipped with `--quick`); (7) the stall deadline sweep, which fails if any swept angle misses the 300 ms budget. Record a golden for a new environment once with `bash scripts/make_golden.sh`.
+`run_tests.sh` gates seven steps and exits non-zero on the first failure: (1) the three unit tests; (2) demo CSV schema; (3) the bit-exact golden for this environment class (a class with no golden only warns); (4) injector sanity: `k2:31` must drop the pole on the baseline and be corrected by SEC at tick 100 on the protected build, and `k2:30+31` must give DED and a verified golden reload; (5) the full 1,640-run campaign, which fails if the protected build shows an SDC in sets A-E or the baseline shows no failure; (6) the repro hash against this environment class's golden (again, a missing golden only warns), then the basin and mistune back-tests, whose stats are printed but not gated (skipped with `--quick`); (7) the stall deadline sweep, which fails if any swept angle misses the 300 ms budget. Record a golden for a new environment once with `bash scripts/make_golden.sh`.
 
 Docker (the pinned constraint). Docker Desktop on an Apple Silicon Mac runs arm64 Linux containers. The image (Debian bookworm pinned by tag and digest, glibc 2.36, g++ 12.2) reproduces the `aarch64-linux` golden that the Pi 5 (glibc 2.41) and the Jetson (glibc 2.35) produce on metal. Docker on the boards was not run: same image validated on the Mac; boards run metal.
 
@@ -140,9 +140,11 @@ Three things determine the numbers: the start and fault lists, floating-point co
 | Jetson Orin Nano, L4T (glibc 2.35), g++, metal | `aarch64-linux` | `6b7e831fb898b98e` | bit-exact |
 | Docker `debian:bookworm-slim` (tag + digest, glibc 2.36), g++ 12.2, on the Mac | `aarch64-linux` | `6b7e831fb898b98e` | bit-exact |
 
+The Pi 5 and the Jetson Orin were rebuilt from 703f03b on 2026-09-30 and ran the full `run_tests.sh` suite and the campaign on metal: both matched the `aarch64-linux` goldens recorded at 9a26e5f bit-exact and printed identical campaign and deadline tables. Nominal output did not change between those two commits, and the commits since 703f03b change only documents, comments and the CMake minimum version.
+
 So on aarch64 Linux the result is bit-exact in the container on the Mac and on the metal of both boards. The two `demo-1s` goldens are byte-identical (same sha256): 1 s is too short for libm drift to reach the printed precision, so the repro hash is the check that tells the environments apart. Over the 64 probe starts the Mac differs from Linux in 3 cases, in the last printed digit (at most 1e-5 in a state column, 1e-4 N in the force columns): case 37 from tick 202 (46 rows), case 44 at tick 767 and case 59 at tick 672 (one row each). Outcomes are identical: 64 of 64 succeed on both.
 
-The probe is `sim/scenarios/repro.json`: 64 seeded random non-moving starts. `python3 sim/backtest.py sim/scenarios/repro.json --hash` prints a sha256 over every case and its raw CSV and compares it against every committed `sim/golden/repro.*.sha256`, printing match or differs for each. `run_tests.sh` step 6 fails unless it matches the golden for this environment class. Same constraint, same hash.
+The probe is `sim/scenarios/repro.json`: 64 seeded random non-moving starts. `python3 sim/backtest.py sim/scenarios/repro.json --hash` prints a sha256 over every case and its raw CSV and compares it against every committed `sim/golden/repro.*.sha256`, printing match or differs for each. `run_tests.sh` step 6 fails if it differs from the golden for this environment class; with no golden for the class it only warns. Same constraint, same hash.
 
 Campaign results (`sim/campaign.py`, 1,640 runs, from theta0 = 0.05 rad, fault at tick 100):
 
@@ -162,7 +164,7 @@ Campaign results (`sim/campaign.py`, 1,640 runs, from theta0 = 0.05 rad, fault a
 | H. controller stalled 5–80 ticks | baseline | 5 | | | 5 (actuator hold, then 0 N; no reload) | 0 |
 | | protected | 5 | | | 5 (actuator hold, then 0 N; reload on resume) | 0 |
 
-On the unprotected build 42 of 640 single-bit flips (6.6%) are silent data corruption, all sign or exponent bits (24-31). The protected build corrects every one in place and never applies a double-flipped word. The 27 masked compute-window flips hit swing-up, model and (disabled) integrator parameters that the balance law does not read, so both lanes agreed. Set F on the protected build is 6 masked and 3 recovered: the input guard rejects the bit-30 flips of theta, thetadot and x (hold, no reload), while the sign (bit 31) and lowest-exponent (bit 23) flips stay within the plausibility limits and feedback absorbs them. In set H the baseline counts as recovered only because the harness marks stall ticks `det` = STALL; it reloads nothing.
+On the unprotected build 42 of 640 single-bit flips (6.6%) are silent data corruption, all sign or exponent bits (24-31). The protected build corrects every one in place and never applies a double-flipped word. The 27 masked compute-window flips hit fields that do not change the balance command (swing-up and model constants, the disabled integrator, a raised exit threshold), so both lanes agreed; 4 of the 27 (ki:31, ilim:30, ilim:31, swexit:30) are read and leave the command unchanged. Set F on the protected build is 6 masked and 3 recovered: the input guard rejects the bit-30 flips of theta, thetadot and x (hold, no reload), while the sign (bit 31) and lowest-exponent (bit 23) flips stay within the plausibility limits and feedback absorbs them. In set H the baseline counts as recovered only because the harness marks stall ticks `det` = STALL; it reloads nothing.
 
 ## Where this fails
 
