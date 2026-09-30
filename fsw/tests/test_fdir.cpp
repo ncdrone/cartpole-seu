@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include "fsw/Runtime.hpp"
+#include "fsw/Plant.hpp"
 
 using namespace fsw;
 
@@ -18,6 +19,18 @@ static bool tick(Runtime& rt, F32 theta, Output& out, TickTlm& t) {
 }
 /** Tests that step theta discontinuously drop the plausibility reference first (a fresh sample, not a glitch). */
 static void forget_last(Runtime& rt) { rt.have_last = 0U; }
+/** Closed-loop plant driven by the runtime (same plant model the sim uses). */
+struct Plant {
+    PlantParams pp; PlantState ps;
+    void reset(double th0) { plant_params_default(pp); ps.x = 0.0; ps.xdot = 0.0; ps.theta = th0; ps.thetadot = 0.0; }
+    void tick(Runtime& rt, Output& out, TickTlm& t) {
+        Input in = { static_cast<F32>(ps.x), static_cast<F32>(ps.xdot), static_cast<F32>(ps.theta), static_cast<F32>(ps.thetadot), cfg::DT_S };
+        Params p; State s;
+        runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, in, out, t);
+        plant_step(pp, ps, out.force, cfg::DT_S);
+    }
+    void coast(F32 force) { plant_step(pp, ps, force, cfg::DT_S); }   // controller skipped: actuator holds the last force
+};
 static void init(Runtime& rt) {
     PlantParams m; plant_params_default(m);
     bool ok = runtime_init(rt, m); assert(ok); (void)ok;
@@ -151,21 +164,41 @@ int main() {
         assert(runtime_fdir(rt) == FDIR_RECOVERING);
         std::printf("(j) post-degraded fault ok\n");
     }
-    { // (k) input guard: nominal trajectory never trips it; a bad sample holds without reload, a repeat reloads
-        Runtime rt; init(rt);
-        for (U32 i = 0; i < 500U; ++i) { tick(rt, 0.3f, o, t); assert(t.det != DET_INPUT); }
-        assert(rt.det_total == 0U);
-        Input bad = make_in(1.3f);
-        Params p; State s;
-        runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bad, o, t);
-        assert(t.det == DET_INPUT);
-        assert(rt.reload_total == 0U);
-        assert(runtime_fdir(rt) == FDIR_RECOVERING);
-        assert(bad.theta == 1.3f);
-        runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bad, o, t);
-        assert(t.det == DET_INPUT);
-        assert(rt.reload_total == 1U);
-        std::printf("(k) input guard ok\n");
+    { // (k) closed loop from 0.3 rad for 500 ticks: the guard never fires on a real trajectory
+        Runtime rt; init(rt); Plant pl; pl.reset(0.3);
+        for (U32 i = 0; i < 500U; ++i) { pl.tick(rt, o, t); assert(t.det != DET_INPUT); }
+        assert(rt.det_total == 0U && runtime_fdir(rt) == FDIR_NOMINAL);
+        std::printf("(k) closed loop, no DET_INPUT ok\n");
+    }
+    { // (l) stall then resume: the plant coasts on the held force, the first fresh sample is a STALL, never an INPUT reject
+        Runtime rt; init(rt); Plant pl; pl.reset(0.3);
+        for (U32 i = 0; i < 30U; ++i) pl.tick(rt, o, t);
+        runtime_notify_stall(rt);
+        for (U32 i = 0; i < 20U; ++i) pl.coast(o.force);
+        pl.tick(rt, o, t);
+        assert(t.det == DET_STALL);
+        for (U32 i = 0; i < 50U; ++i) { pl.tick(rt, o, t); assert(t.det != DET_INPUT); }
+        assert(runtime_fdir(rt) == FDIR_NOMINAL);
+        std::printf("(l) stall resume ok\n");
+    }
+    { // (m) one case per plausibility rule; first reject holds without reload, a second consecutive reject reloads
+        const F32 nan = std::nanf("");
+        const Input bads[4] = { { 0.0f, 0.0f, nan, 0.0f, cfg::DT_S }, { 3.0f, 0.0f, 0.0f, 0.0f, cfg::DT_S },
+                                { 0.0f, 0.0f, 0.0f, 26.0f, cfg::DT_S }, { 0.0f, 0.0f, 1.0f, 0.0f, cfg::DT_S } };
+        for (U32 c = 0; c < 4U; ++c) {
+            Runtime rt; init(rt); tick(rt, 0.0f, o, t); tick(rt, 0.0f, o, t);
+            Params p; State s;
+            runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bads[c], o, t);
+            assert(t.det == DET_INPUT);
+            assert(rt.reload_total == 0U);
+            assert(runtime_fdir(rt) == FDIR_RECOVERING);
+            if (c == 3U) {
+                runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bads[c], o, t);
+                assert(t.det == DET_INPUT);
+                assert(rt.reload_total == 1U);
+            }
+        }
+        std::printf("(m) plausibility rules ok\n");
     }
     std::printf("ALL FDIR TESTS PASSED\n");
     return 0;

@@ -68,6 +68,7 @@ static bool reload_golden(Runtime& rt, Params& p, State& s) {
     rt.p = p; rt.s = s;
 #endif
     rt.reload_total++;
+    rt.have_last = 0U; rt.input_rejects = 0U;            // sample history is untrusted after a reload
     return true;
 }
 
@@ -103,7 +104,7 @@ bool runtime_decode(Runtime& rt, Params& p, State& s, TickTlm& t) {
     if (!okp || !oks) { /* first detector in the order names the event */ on_detection(rt, (rp.ded || rs.ded) ? DET_DED : DET_CRC, p, s, t); return runtime_fdir(rt) != FDIR_SAFE; }
     Params ref; params_default(ref);                    // range reference: compile-time literals, no RAM copy
     if (!params_in_range(p, ref)) { on_detection(rt, DET_RANGE, p, s, t); return runtime_fdir(rt) != FDIR_SAFE; }
-    if (rt.stall_pending) { rt.stall_pending = 0U; on_detection(rt, DET_STALL, p, s, t); return runtime_fdir(rt) != FDIR_SAFE; }
+    if (rt.stall_pending) { rt.stall_pending = 0U; rt.have_last = 0U; rt.input_rejects = 0U; on_detection(rt, DET_STALL, p, s, t); return runtime_fdir(rt) != FDIR_SAFE; }
 #else
     p = rt.p; s = rt.s;
     rt.stall_pending = 0U;                              // baseline: a stall is just skipped ticks
@@ -141,7 +142,16 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
     const Params* q1 = &p1; const Params* q2 = &p2;
     Input inp = in;                                     // local copy: the caller's sample is never modified
     if (!input_plausible(rt, inp)) {
-        inp.x = rt.last_x; inp.theta = rt.last_theta; inp.thetadot = rt.last_thetadot;   // hold the last accepted sample
+        if (rt.have_last) { inp.x = rt.last_x; inp.theta = rt.last_theta; inp.thetadot = rt.last_thetadot; }   // hold the last accepted sample
+        else {  // nothing to hold (first sample, or history reset by a stall/reload): never invent an upright sample, use the
+                // rejected one with non-finite fields zeroed and x, thetadot clamped to their plausible limits
+            if (!std::isfinite(inp.x)) inp.x = 0.0f;
+            if (!std::isfinite(inp.theta)) inp.theta = 0.0f;
+            if (!std::isfinite(inp.thetadot)) inp.thetadot = 0.0f;
+            const F32 xl = cfg::TRACK_LIMIT_M + 0.5f;
+            inp.x = inp.x > xl ? xl : (inp.x < -xl ? -xl : inp.x);
+            inp.thetadot = inp.thetadot > cfg::PLAUS_MAX_RATE ? cfg::PLAUS_MAX_RATE : (inp.thetadot < -cfg::PLAUS_MAX_RATE ? -cfg::PLAUS_MAX_RATE : inp.thetadot);
+        }
         if (!std::isfinite(inp.xdot)) inp.xdot = 0.0f;
         const bool repeat = rt.input_rejects > 0U;
         rt.input_rejects++;

@@ -78,7 +78,10 @@ def deadline(jobs):
     print("\n   deadline sweep (protected build, stall at tick 100, actuator holds 10 ticks then 0 N)")
     print("   theta0    max recoverable stall   budget 300 ms")
     for a in angles:
-        good = [k for k in stalls if ok[(a, k)]]; m = max(good) if good else 0
+        m = 0
+        for k in stalls:                       # largest k such that every swept stall <= k recovers
+            if not ok[(a, k)]: break
+            m = k
         met = m >= budget
         if a == 1: one_deg_met = met
         print(f"   {a:<2} deg     {m:>3} ticks ({m * 10:>4} ms)      {'met' if met else 'NOT met'}")
