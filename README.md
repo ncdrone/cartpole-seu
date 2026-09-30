@@ -6,13 +6,13 @@ A C++14 cart-pole controller (energy-shaping swing-up, then an LQR whose gains a
 
 | # | Requirement | Evidence |
 |---|---|---|
-| R1 | C++ controller, no dependencies | `fsw/` is 1,123 lines of C++14 (sources and headers), no heap, no exceptions, no RTTI, built `-O2 -ffp-contract=off -fno-exceptions -fno-rtti` with warnings as errors; `test_controller` |
+| R1 | C++ controller, no dependencies | `fsw/src` + `fsw/include` are 1,123 lines of C++14 (tests excluded), no heap, no exceptions, no RTTI, built `-O2 -ffp-contract=off -fno-exceptions -fno-rtti` with warnings as errors; `test_controller` |
 | R2 | Optimization-based | On-board discrete Riccati solve at init (Q = diag(1, 1, 10, 1), R = 0.1); scipy cross-check agrees to 1e-7 |
 | R3 | Stabilizes from any non-moving start | Grid 905/905 including hanging-down; basin 181/181; worst rail use 2.15 m of 2.4 m (settle median 5.3 s, max 7.2 s; 59 basin starts pass through horizontal); hanging-down nominal balances at 2.4 s using 1.19 m of rail; the same grid was 23% before swing-up |
 | R4 | Tolerates small parameter error | Mistune 108/108 at ±10% cart mass, pole mass, half-length; the swing-up handoff was the sensitive part (2.5 rad/s entry limit stalled at +10% length, 4.0 rad/s catches every corner) |
-| R5 | Software-only radiation robustness (the definition is part of the ask) | Fault model: single- and double-bit SEUs in stored parameters and state, compute-window flips, sensor-sample corruption, and stalls. Required behaviour: never apply an untrusted parameter, correct what can be proven, detect the rest, recover within the time-to-criticality. Campaign: baseline 42/640 SDC, protected 0 SDC in every set |
+| R5 | Software-only radiation robustness (the definition is part of the ask) | Radiation robustness here means that under single- and double-bit SEUs in stored parameters and state, compute-window flips, sensor-sample corruption and stalls, the controller never applies an untrusted parameter, corrects what can be proven, detects the rest, and recovers within the time-to-criticality. Campaign: baseline 42/640 SDC, protected 0 SDC in every set |
 
-Stall deadline (protected build, stall at tick 100, `python3 sim/campaign.py --deadline`): the longest recoverable stall is 130 ticks (1300 ms) at 1 deg, 100 (1000 ms) at 5 deg, 80 (800 ms) at 15 deg and 60 (600 ms) at 30 deg. The 300 ms budget is met at every angle.
+Stall deadline (protected build, stall at tick 100, `python3 sim/campaign.py --deadline`): the longest recoverable stall is 130 ticks (1300 ms) at 1 deg, 100 (1000 ms) at 5 deg, 80 (800 ms) at 15 deg and 60 (600 ms) at 30 deg. The 300 ms budget is met at every swept angle (1–30°).
 
 ## What is built and what is not
 
@@ -20,8 +20,9 @@ Built:
 
 - Energy-shaping swing-up with hysteresis handoff to a discrete LQR; gains solved on board, offline table as fallback (`--gains table`).
 - Hsiao SECDED(39,32) on every word of `Params` and `State` in a volatile encoded store, CRC-32C over the corrected plaintext, range table, dual execution of `step()`, output guard from constants.
-- Sensor-sample plausibility guard (`det` 9 INPUT): rejects non-finite values, |x| > 2.9 m, |thetadot| > 25 rad/s, or a theta step inconsistent with thetadot by more than 0.05 rad. First reject holds the last good sample without a reload, second consecutive reject reloads, third latches SAFE.
+- Input plausibility guard (`det` 9 INPUT): rejects non-finite values, |x| > 2.9 m, |thetadot| > 25 rad/s, or a theta step inconsistent with thetadot by more than 0.05 rad. First reject holds the last good sample without a reload, second consecutive reject reloads, third latches SAFE.
 - Four-state FDIR (NOMINAL, RECOVERING, DEGRADED, SAFE) with a (v, ~v) state word and a verified golden reload. DEGRADED inhibits swing-up and halves the clamp; it is entered on a second detection within the 200-tick window. SAFE latches on the third, or on any detection while DEGRADED.
+- Stall handling: an actuator freshness monitor holds a stale command for 10 ticks then applies 0 N; a stall is a detection, with a reload on resume.
 - Fault injector (sim side only), verification campaign `sim/campaign.py` (sets A-H plus the stall deadline sweep), back-test scenarios, LAN viewer.
 - Tests: `test_controller`, `test_protect` (exhaustive codec), `test_fdir` (a)-(m); demo schema, golden, injector sanity and repro-hash checks in `scripts/run_tests.sh`.
 - Metal builds on Mac, Pi 5 and Jetson Orin; pinned Docker image; measured reproducibility across them.
@@ -31,7 +32,7 @@ Not built (documented only):
 - Command sequence plus CRC (belongs on the F´ page below).
 - Sampled assessment campaign.
 - Friction, actuator lag and sensor bias plant axes.
-- Docker on the boards as a required path.
+- Docker on the boards as a required path (the same image is validated on the Mac; the boards run metal).
 - Hardware EDAC assumptions (SPEC-01 section 8 lists what would change).
 
 ## How to run
@@ -61,7 +62,7 @@ The default build is pure C++ and emits CSV; `--visual`, `--demo` and `--serve` 
 
 `build_demo.sh` checks, in order: detect (host, arch, board, libc, environment class `arm64-darwin` or `aarch64-linux`); deps (compiles and runs a three-line file rather than trusting `command -v`); build (Release, `-std=c++14 -O2 -ffp-contract=off -fno-exceptions -fno-rtti`, warnings as errors); verify (unit tests, a 1 s demo with the CSV schema checked, golden comparison: bit-exact within an environment class); stamp `fsw/build/build_info.json`. `run_tests.sh` adds the injector sanity check (a force-limit sign flip must drop the pole on the baseline, a mantissa flip must be masked), the repro hash, the back-test scenarios and the fault campaign, and fails if the protected build shows an SDC in sets A-E. Record a golden for a new environment once with `bash scripts/make_golden.sh`.
 
-Docker (the pinned constraint):
+Docker (the pinned constraint). Docker Desktop on an Apple Silicon Mac runs arm64 Linux containers, the same architecture and libc as the boards, so Docker-on-Mac and Docker-on-Jetson give the same hash:
 
 ```
 bash bench/pin_image.sh                         # once: pin debian:bookworm-slim by digest
@@ -90,7 +91,6 @@ Params fields `k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swe
 
 Sim tools:
 
-```
 ```
 python3 sim/render.py --theta0 0.6 --x0 -0.5            # matplotlib window: cart, pole, traces, force terms
 python3 sim/backtest.py --all                            # every scenario, stats after each
@@ -140,11 +140,11 @@ Campaign results (`sim/campaign.py`, 1,640 runs, from theta0 = 0.05 rad, fault a
 | D. the CRC word itself | protected | 8 | | | 8 | 0 |
 | E. compute window (one lane's decoded copy) | protected | 40 | 27 | | 13 (dual-exec mismatch) | 0 |
 | F. one sensor sample | baseline | 9 | 9 | | | 0 |
-| | protected | 9 | 6 | | 3 (input guard) | 0 |
+| | protected | 9 | 6 | | 3 (input plausibility guard) | 0 |
 | G. State words | protected | 12 | | 12 | | 0 |
 | H. controller stalled 5–80 ticks | both | 5 | | | 5 (actuator fallback + reload) | 0 |
 
-On the unprotected build 42 of 640 single-bit flips (6.6%) are silent data corruption, all sign or exponent bits. The protected build corrects every one in place and never applies a double-flipped word. The 27 masked compute-window flips hit swing-up parameters while the controller was balancing, so both lanes agreed. Set F on the protected build is 6 masked and 3 recovered: the sensor guard fires on the exponent-bit-30 flips of theta, thetadot and x, while sign and mantissa flips are sub-tolerance and absorbed by feedback.
+On the unprotected build 42 of 640 single-bit flips (6.6%) are silent data corruption, all sign or exponent bits. The protected build corrects every one in place and never applies a double-flipped word. The 27 masked compute-window flips hit swing-up parameters while the controller was balancing, so both lanes agreed. Set F on the protected build is 6 masked and 3 recovered: the input plausibility guard fires on the exponent-bit-30 flips of theta, thetadot and x, while sign and mantissa flips are sub-tolerance and absorbed by feedback.
 
 ## Where this fails
 
@@ -152,7 +152,7 @@ On the unprotected build 42 of 640 single-bit flips (6.6%) are silent data corru
 - **Three or more flipped bits in one word.** SECDED miscorrects 60–69% of triple-bit patterns and reports success. The CRC and range table catch the miscorrection; a pattern that passes all three is silent. MBUs are >5% of space memory errors and we do not model adjacency.
 - **The pole is already past the basin when recovery finishes.** Zero force loses the pole in 0.3–1.3 s depending on angle. Any detection-plus-reload chain longer than ~300 ms at a large angle fails even though every layer "worked".
 - **Faults in what we do not protect: code, stack, OS, bus, the plant model.** A flipped instruction, a corrupted return address, a wrong sensor calibration or an unmodelled friction term are outside every layer here. Real systems answer these with hardware EDAC, image CRC at boot, bus CRCs and a hardware watchdog.
-- **The controller's model sensitivity.** Swing-up reads pole energy through its own model; a ±10% length error made it stall or overshoot the catch until a minimum pump authority and a wider entry rate were added. It now passes every mistune corner, but friction, actuator lag and sensor bias are not modelled yet and the slide says so.
+- **The controller's model sensitivity.** Swing-up reads pole energy through its own model; a ±10% length error made it stall or overshoot the catch until a minimum pump authority and a wider entry rate were added. It now passes every mistune corner, but friction, actuator lag and sensor bias are not modelled yet.
 
 ## F´ mapping (one paragraph)
 
@@ -174,4 +174,4 @@ Dockerfile  pinned software constraint
 
 Hours: TBD (author fills in)
 
-Cut, documented but not built: command sequence + CRC (F´ page), sampled assessment campaign, friction/lag/bias plant axes, Docker on the boards, hardware EDAC assumptions.
+Cut, documented but not built: command sequence + CRC (F´ page), sampled assessment campaign, friction/lag/bias plant axes, Docker on the boards as a required path (the same image is validated on the Mac; the boards run metal), hardware EDAC assumptions.
