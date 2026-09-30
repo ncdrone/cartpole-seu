@@ -38,13 +38,13 @@ Ship a **small, runnable system** (not a one-file toy) that:
 
 ```
 orca-cartpole-softfault/
-  README.md                 # run it, R1–R5 with a number each, how to run, reproducibility, limitations, hours
+  README.md                 # run it, R1–R5 with a number each, how to run, reproducibility, limitations
   fsw/                      # flight core: Controller (pure step, range table), Lqr (on-board design), Protect (SECDED, CRC, store),
                             #   Runtime (decode → input guard → dual step → output guard → FDIR), Math, Config; Plant and the harness
                             #   main (+ injector) are sim-side code in this tree; tests/, tools/ (scipy cross-check)
   sim/                      # render.py (window viewer), backtest.py + scenarios/ (grid, basin, mistune, repro), campaign.py, golden/
   scripts/                  # build_demo.sh, run_tests.sh, clean_up.sh, make_golden.sh, docker-entry.sh
-  docs/                     # SPEC-01, SPEC-02, GLOSSARY, how-it-works.html, system-diagram.html
+  specs/                    # SPEC-01, SPEC-02, GLOSSARY, how-it-works.html, system-diagram.html
   bench/                    # bench tooling, not part of the core: serve.py + viewer.html (LAN viewer), pin_image.sh, rate.json
   Dockerfile                # pinned software constraint
 ```
@@ -123,7 +123,7 @@ Sensors/plant state: the input plausibility guard checks each sample; the primar
 
 - Correctable: fix bit, write back (scrub), count `corrected` once per event, continue.
 - Detectable uncorrectable: **do not** trust data → recovery policy (§4).
-- Limitation: this code reports SEC on 60% of 3-bit patterns in a word (5,500 of 9,139; extended Hamming would be 69%) and hands back a wrong word. The CRC exists to catch that: at HD = 6 a miscorrected triple (at most four wrong bits) cannot pass it (see docs/how-it-works.html §3).
+- Limitation: this code reports SEC on 60% of 3-bit patterns in a word (5,500 of 9,139; extended Hamming would be 69%) and hands back a wrong word. The CRC exists to catch that: at HD = 6 a miscorrected triple (at most four wrong bits) cannot pass it (see specs/how-it-works.html §3).
 
 **Ordering:** decode and correct every word → CRC-32C over the corrected plaintext → range table → use. The CSV carries one `det` code per tick, named by the first detector other than SEC: a SEC code is overwritten by a later detector in the same tick (a miscorrected triple logs `det` 3 CRC and still increments `sec`). Several detectors can fire in one tick (for example a dual-execution mismatch followed by a non-finite output); each calls `on_detection()`, so the detection counters can rise by 2 in that tick.
 
@@ -172,7 +172,7 @@ With that hardware the software layers that stay valuable are the compute-window
 - [x] Dual execution: a corruption of the decoded local copy between decode and `step()` is detected (13 of 40; the other 27 hit fields that do not change the balance command: swing-up and model constants, the disabled integrator, a raised exit threshold; 4 of them, ki:31, ilim:30, ilim:31 and swexit:30, are read and leave the command unchanged)  
 - [x] Stall: k skipped ticks with ZOH; measured recovery deadline reported against the 300 ms budget (`campaign.py --deadline`)  
 - [x] FDIR transitions unit-tested (`test_fdir` (a)–(o)); state word and counters (v, ~v). The transitions are an if/else in `on_detection()`, not a table  
-- [ ] README states the fault model, the limitations, the criterion, hours spent and what was cut (hours pending)  
+- [x] README states the fault model, the limitations, the criterion and what was cut  
 
 ## 10. Open decisions (resolved 2026-09-29)
 

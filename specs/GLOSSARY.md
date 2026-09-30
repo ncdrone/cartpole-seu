@@ -1,6 +1,6 @@
 # Glossary: terms and acronyms used in this project
 
-**Scope:** every acronym and term of art that appears in `specs/`, `docs/`, `fsw/` and `sim/`. Grouped by topic. Where a term names a specific design decision in this project, the entry says what we do with it. "The design reviews" are the internal reviews summarised in `research_summary.html`; they are not shipped.
+**Scope:** every acronym and term of art that appears in `specs/`, `fsw/` and `sim/`. Grouped by topic. Where a term names a specific design decision in this project, the entry says what we do with it. "The design reviews" are the internal reviews summarised in `research_summary.html`; they are not shipped.
 
 ---
 

@@ -146,11 +146,11 @@ class Handler(BaseHTTPRequestHandler):
             pass
 
     def route_docs(self, name):
-        """Serve the single-file HTML docs (docs/*.html, research/summary.html) on the LAN. Name only, no paths."""
+        """Serve the single-file HTML docs (specs/*.html) on the LAN. Name only, no paths."""
         import re
         if not re.fullmatch(r"[a-z0-9_-]+\.html", name):
             return self.send_bytes(404, "text/plain; charset=utf-8", b"not found\n")
-        for d in (os.path.join(ROOT, "docs"),):
+        for d in (os.path.join(ROOT, "specs"),):
             p = os.path.join(d, name)
             if os.path.exists(p):
                 with open(p, "rb") as f:

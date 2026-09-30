@@ -8,11 +8,7 @@ __pycache__/
 *.pyc
 .DS_Store
 
-# internal working material: not part of the deliverable
+# internal working material: not part of the deliverable (shipping documents live in specs/)
 research/
-docs/*
-# ...except what ships
-!docs/GLOSSARY.md
-!docs/how-it-works.html
-!docs/system-diagram.html
+docs/
 .superpowers/

@@ -136,7 +136,7 @@ Exit codes: 0 = campaign thresholds met; non-zero = regression (a protected SDC 
 - [x] Documented injector algorithm + when it runs in the tick (§3)  
 - [x] Limitations section in README (short form of §6)  
 - [x] Campaign produces a table: build × set × outcome counts  
-- [x] At least one plot or CSV excerpt in the summary pack (`docs/how-it-works.html` §2–§3, from the binaries' CSV)  
+- [x] At least one plot or CSV excerpt in the summary pack (`specs/how-it-works.html` §2–§3, from the binaries' CSV)  
 - [x] Hardened mode shows fewer SDC than baseline under the same single-bit schedule (0 vs 42 of 640)  
 - [x] Double-bit path never “corrects” silently under SECDED (60/60 DED → reload)  
 

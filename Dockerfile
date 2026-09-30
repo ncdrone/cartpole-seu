@@ -21,7 +21,7 @@ COPY fsw/ fsw/
 COPY sim/ sim/
 COPY scripts/ scripts/
 COPY bench/ bench/
-COPY docs/GLOSSARY.md docs/GLOSSARY.md
+COPY specs/GLOSSARY.md specs/GLOSSARY.md
 
 # Build at image build time so a broken toolchain fails here. The committed goldens are set aside during this build:
 # comparing against them is the job of `docker run cartpole tests`, and a golden that predates a controller change

@@ -104,7 +104,7 @@ python3 sim/render.py --csv flip.csv
 python3 sim/campaign.py --deadline                    # stall deadline sweep, protected build
 ```
 
-Params fields `k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg`, bits 0-31, `+` for multi-bit; also `--flip-state`, `--flip-check`, `--flip-crc`, `--flip-input`. The injector lives in the sim-side `main.cpp`; the flight object code is identical with or without it. The CSV carries `mode` (0 SWING, 1 BALANCE; SAFE and stall ticks report 0), `det` (0 none, 1 SEC, 2 DED, 3 CRC, 4 RANGE, 5 MISMATCH, 6 NONFINITE, 7 STALL, 8 GOLDEN, 9 INPUT), `fdir` (0 NOMINAL, 1 RECOVERING, 2 DEGRADED, 3 SAFE), `sec` and `reload` counters. `docs/how-it-works.html` walks through single, double and triple flips with the numbers from `cartpole_baseline`, `cartpole_demo` and the shipped codec; `docs/system-diagram.html` is the functional diagram; on metal both are also served by the LAN viewer at `/docs/<name>.html` (the image carries only `docs/GLOSSARY.md`).
+Params fields `k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg`, bits 0-31, `+` for multi-bit; also `--flip-state`, `--flip-check`, `--flip-crc`, `--flip-input`. The injector lives in the sim-side `main.cpp`; the flight object code is identical with or without it. The CSV carries `mode` (0 SWING, 1 BALANCE; SAFE and stall ticks report 0), `det` (0 none, 1 SEC, 2 DED, 3 CRC, 4 RANGE, 5 MISMATCH, 6 NONFINITE, 7 STALL, 8 GOLDEN, 9 INPUT), `fdir` (0 NOMINAL, 1 RECOVERING, 2 DEGRADED, 3 SAFE), `sec` and `reload` counters. `specs/how-it-works.html` walks through single, double and triple flips with the numbers from `cartpole_baseline`, `cartpole_demo` and the shipped codec; `specs/system-diagram.html` is the functional diagram; on metal both are also served by the LAN viewer at `/docs/<name>.html` (the image carries only `specs/GLOSSARY.md`).
 
 Sim tools:
 
@@ -186,14 +186,11 @@ fsw/        flight core: Controller, Lqr, Protect (SECDED + CRC + store), Runtim
 sim/        render.py (window viewer), backtest.py, campaign.py (verification campaign), scenarios/ (grid, basin, mistune, repro), golden/
 bench/      bench tooling, not part of the core: serve.py + viewer.html (LAN browser viewer, used by --serve/--demo), pin_image.sh, rate.json
 scripts/    build_demo.sh, run_tests.sh, clean_up.sh, make_golden.sh, docker-entry.sh
-specs/      SPEC-01-system-build.md, SPEC-02-softfault-testing.md
-docs/       GLOSSARY.md, how-it-works.html, system-diagram.html
+specs/      SPEC-01-system-build.md, SPEC-02-softfault-testing.md, GLOSSARY.md, how-it-works.html, system-diagram.html
 research_summary.html   synthesis of five independent reviews of the plan as of 2026-09-29 (historical; the reviews themselves are internal, not shipped)
 Dockerfile  pinned software constraint
 ```
 
-## What was cut, and hours
+## What was cut
 
 Cut, documented but not built: command sequence + CRC (F´ port), sampled assessment campaign, friction/lag/bias plant axes, Docker on the boards as a required path (same image validated on the Mac; boards run metal), hardware EDAC assumptions, the flight/sim library split.
-
-Hours: TBD (author fills in)
