@@ -16,6 +16,8 @@ static bool tick(Runtime& rt, F32 theta, Output& out, TickTlm& t) {
     runtime_control(rt, p, p, s, make_in(theta), out, t);
     return ok;
 }
+/** Tests that step theta discontinuously drop the plausibility reference first (a fresh sample, not a glitch). */
+static void forget_last(Runtime& rt) { rt.have_last = 0U; }
 static void init(Runtime& rt) {
     PlantParams m; plant_params_default(m);
     bool ok = runtime_init(rt, m); assert(ok); (void)ok;
@@ -65,6 +67,7 @@ int main() {
         clean_ticks(rt, 5U, 0.02f);                                  // reseed re-picks BALANCE near upright
         const F32 lim = 0.5f * cfg::FORCE_LIMIT_N;
         bool saw_sat = false;
+        forget_last(rt);
         for (U32 i = 0; i < 20U; ++i) {                              // 0.6 rad: BALANCE holds (exit 0.75), raw law saturates
             tick(rt, 0.6f, o, t);
             assert(runtime_fdir(rt) == FDIR_DEGRADED);
@@ -73,6 +76,7 @@ int main() {
             if (o.saturated && std::fabs(o.force) == lim) saw_sat = true;
         }
         assert(saw_sat);
+        forget_last(rt);
         clean_ticks(rt, 5U, 0.02f);
         // remaining clean ticks to complete DEGRADED_CLEAN_TICKS (30 already counted)
         clean_ticks(rt, cfg::FDIR_DEGRADED_CLEAN_TICKS - 30U - 1U, 0.02f);
@@ -119,6 +123,7 @@ int main() {
     }
     { // (h) DEGRADED inhibits swing-up
         Runtime rt; reach_degraded(rt);
+        forget_last(rt);
         for (U32 i = 0; i < 5U; ++i) {
             tick(rt, 2.5f, o, t);
             assert(runtime_fdir(rt) == FDIR_DEGRADED);
@@ -145,6 +150,22 @@ int main() {
         assert(t.det == DET_DED);
         assert(runtime_fdir(rt) == FDIR_RECOVERING);
         std::printf("(j) post-degraded fault ok\n");
+    }
+    { // (k) input guard: nominal trajectory never trips it; a bad sample holds without reload, a repeat reloads
+        Runtime rt; init(rt);
+        for (U32 i = 0; i < 500U; ++i) { tick(rt, 0.3f, o, t); assert(t.det != DET_INPUT); }
+        assert(rt.det_total == 0U);
+        Input bad = make_in(1.3f);
+        Params p; State s;
+        runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bad, o, t);
+        assert(t.det == DET_INPUT);
+        assert(rt.reload_total == 0U);
+        assert(runtime_fdir(rt) == FDIR_RECOVERING);
+        assert(bad.theta == 1.3f);
+        runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bad, o, t);
+        assert(t.det == DET_INPUT);
+        assert(rt.reload_total == 1U);
+        std::printf("(k) input guard ok\n");
     }
     std::printf("ALL FDIR TESTS PASSED\n");
     return 0;

@@ -16,12 +16,12 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 BIN = {"protected": os.path.join(ROOT, "fsw", "build", "cartpole_demo"), "baseline": os.path.join(ROOT, "fsw", "build", "cartpole_baseline")}
 PFIELDS = "k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg".split()
 SFIELDS = "integ thdf tick flags".split()
-DET = {0: "none", 1: "SEC", 2: "DED", 3: "CRC", 4: "RANGE", 5: "MISMATCH", 6: "NONFINITE", 7: "STALL", 8: "GOLDEN"}
+DET = {0: "none", 1: "SEC", 2: "DED", 3: "CRC", 4: "RANGE", 5: "MISMATCH", 6: "NONFINITE", 7: "STALL", 8: "GOLDEN", 9: "INPUT"}
 THETA0, X0, SECONDS, TICK = 0.05, 0.0, 6.0, 100
 
 
-def run(build, extra):
-    cmd = [BIN[build], "--theta0", str(THETA0), "--x0", str(X0), "--seconds", str(SECONDS), "--flip-tick", str(TICK)] + extra
+def run(build, extra, theta0=THETA0, seconds=SECONDS):
+    cmd = [BIN[build], "--theta0", str(theta0), "--x0", str(X0), "--seconds", str(seconds), "--flip-tick", str(TICK)] + extra
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         return {"plant": "CRASH", "det": "none", "reload": 0, "fdir": 0, "sec": 0}
@@ -67,9 +67,28 @@ def sets(quick):
     return S
 
 
+def deadline(jobs):
+    """SPEC-02 §4.4: largest stall (ticks) the protected build survives, per start angle, against the 300 ms budget."""
+    angles, stalls, budget = (1, 5, 15, 30), (5, 10, 20, 30, 40, 50, 60, 80, 100, 130, 160, 200), 30
+    if not os.path.exists(BIN["protected"]): sys.exit(f"missing {BIN['protected']}: run scripts/build_demo.sh")
+    cases = [(a, k) for a in angles for k in stalls]
+    with ThreadPoolExecutor(max_workers=jobs) as ex:
+        res = list(ex.map(lambda c: run("protected", ["--stall", str(c[1])], theta0=math.radians(c[0]), seconds=8.0)["plant"] == "OK", cases))
+    ok = dict(zip(cases, res)); one_deg_met = False
+    print("\n   deadline sweep (protected build, stall at tick 100, actuator holds 10 ticks then 0 N)")
+    print("   theta0    max recoverable stall   budget 300 ms")
+    for a in angles:
+        good = [k for k in stalls if ok[(a, k)]]; m = max(good) if good else 0
+        met = m >= budget
+        if a == 1: one_deg_met = met
+        print(f"   {a:<2} deg     {m:>3} ticks ({m * 10:>4} ms)      {'met' if met else 'NOT met'}")
+    if not one_deg_met: sys.exit(1)
+
+
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--quick", action="store_true"); ap.add_argument("--jobs", type=int, default=os.cpu_count() or 4)
+    ap = argparse.ArgumentParser(); ap.add_argument("--quick", action="store_true"); ap.add_argument("--deadline", action="store_true"); ap.add_argument("--jobs", type=int, default=os.cpu_count() or 4)
     a = ap.parse_args()
+    if a.deadline: deadline(a.jobs); return
     for b, p in BIN.items():
         if not os.path.exists(p): sys.exit(f"missing {p}: run scripts/build_demo.sh")
     S = sets(a.quick); t0 = time.time(); results = {}

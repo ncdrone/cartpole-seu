@@ -71,7 +71,7 @@ static bool reload_golden(Runtime& rt, Params& p, State& s) {
     return true;
 }
 
-static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm& t) {
+static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm& t, bool reload = true) {
     if (t.det == DET_NONE || t.det == DET_SEC) t.det = static_cast<U8>(d);
     rt.det_total++;
     if (rt.tick - rt.window_start > cfg::FDIR_WINDOW_TICKS) { rt.window_start = rt.tick; rt.det_count = 0U; rt.det_count_inv = ~0U; }   // window expired: re-anchor, reset both words
@@ -81,7 +81,7 @@ static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm&
     if (rt.det_count >= cfg::FDIR_MAX_DETECTIONS) { fdir_set(rt, FDIR_SAFE); return; }           // persistence
     const FdirState prev = runtime_fdir(rt);
     if (prev == FDIR_DEGRADED) { fdir_set(rt, FDIR_SAFE); return; }                              // any detection while degraded
-    if (!reload_golden(rt, p, s)) { t.det = DET_GOLDEN; fdir_set(rt, FDIR_SAFE); return; }
+    if (reload && !reload_golden(rt, p, s)) { t.det = DET_GOLDEN; fdir_set(rt, FDIR_SAFE); return; }
     // a second detection inside the window while still recovering escalates to DEGRADED
     fdir_set(rt, (prev == FDIR_RECOVERING && rt.det_count >= 2U) ? FDIR_DEGRADED : FDIR_RECOVERING);
     rt.clean_ticks = 0U;
@@ -111,6 +111,24 @@ bool runtime_decode(Runtime& rt, Params& p, State& s, TickTlm& t) {
     return true;
 }
 
+#if FSW_PROTECT
+/* Wrap to (-pi, pi], same expression as Controller.cpp. */
+static F32 wrap_pi(F32 a) { return static_cast<F32>(std::remainder(static_cast<double>(a), 2.0 * 3.14159265358979323846)); }
+
+/* Plausibility of the sensor sample against the last accepted one. Held samples widen the comparison interval. */
+static bool input_plausible(const Runtime& rt, const Input& in) {
+    if (!std::isfinite(in.x) || !std::isfinite(in.xdot) || !std::isfinite(in.theta) || !std::isfinite(in.thetadot)) return false;
+    if (std::fabs(in.x) > cfg::TRACK_LIMIT_M + 0.5f) return false;
+    if (std::fabs(in.thetadot) > cfg::PLAUS_MAX_RATE) return false;
+    if (rt.have_last) {
+        const F32 dt = in.dt * static_cast<F32>(rt.input_rejects + 1U);
+        const F32 pred = 0.5f * (in.thetadot + rt.last_thetadot) * dt;
+        if (std::fabs(wrap_pi(in.theta - rt.last_theta) - pred) > cfg::PLAUS_THETA_TOL) return false;
+    }
+    return true;
+}
+#endif
+
 void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, const Input& in, Output& out, TickTlm& t) {
     out.fault = 0U; out.saturated = 0U; out.pad[0] = 0U; out.pad[1] = 0U;
     if (runtime_fdir(rt) == FDIR_SAFE) {
@@ -119,12 +137,25 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
         return;
     }
 #if FSW_PROTECT
-    State s1 = s, s2 = s; Output o1, o2;
-    step(p1, in, s1, o1); step(p2, in, s2, o2);
     Params pr = p2;
+    const Params* q1 = &p1; const Params* q2 = &p2;
+    Input inp = in;                                     // local copy: the caller's sample is never modified
+    if (!input_plausible(rt, inp)) {
+        inp.x = rt.last_x; inp.theta = rt.last_theta; inp.thetadot = rt.last_thetadot;   // hold the last accepted sample
+        if (!std::isfinite(inp.xdot)) inp.xdot = 0.0f;
+        const bool repeat = rt.input_rejects > 0U;
+        rt.input_rejects++;
+        on_detection(rt, DET_INPUT, pr, s, t, repeat);  // first reject: no reload (the store is fine); a persistent one escalates via the reload path
+        if (repeat) { q1 = &pr; q2 = &pr; }
+    } else {
+        rt.input_rejects = 0U;
+        rt.last_x = inp.x; rt.last_theta = inp.theta; rt.last_thetadot = inp.thetadot; rt.have_last = 1U;
+    }
+    State s1 = s, s2 = s; Output o1, o2;
+    step(*q1, inp, s1, o1); step(*q2, inp, s2, o2);
     if (o1.force != o2.force || o1.fault != o2.fault || s1.mode != s2.mode) {   // compute-window flip in one lane
         on_detection(rt, DET_MISMATCH, pr, s, t);
-        if (runtime_fdir(rt) != FDIR_SAFE) { State sr = s; step(pr, in, sr, o2); s = sr; }   // one more step on the reloaded golden
+        if (runtime_fdir(rt) != FDIR_SAFE) { State sr = s; step(pr, inp, sr, o2); s = sr; }   // one more step on the reloaded golden
     } else { s = s1; }
     if (runtime_fdir(rt) == FDIR_SAFE) { out.force = cfg::SAFE_FORCE_N; out.fault = 1U; }
     else {

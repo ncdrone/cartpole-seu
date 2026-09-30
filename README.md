@@ -106,7 +106,7 @@ fsw/build/cartpole_demo     --theta0 0.05 --seconds 6 --stall 40 --flip-tick 100
 python3 sim/render.py --csv flip.csv
 ```
 
-Params fields `k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg`, bits 0–31, `+` for multi-bit; also `--flip-state`, `--flip-check`, `--flip-crc`, `--flip-input`. The injector lives in the sim-side `main.cpp`; the flight core has no knowledge of it and the flight object code is identical with or without it. The CSV carries `det` (0 none, 1 SEC, 2 DED, 3 CRC, 4 RANGE, 5 MISMATCH, 6 NONFINITE, 7 STALL, 8 GOLDEN), `fdir` (0 NOMINAL, 1 RECOVERING, 2 DEGRADED, 3 SAFE), `sec` and `reload` counters. `docs/how-it-works.html` walks through eight real flips and what each protection layer does with them; `docs/system-diagram.html` is the functional diagram. Both are single files and are also served by the LAN viewer at `/docs/<name>.html`.
+Params fields `k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg`, bits 0–31, `+` for multi-bit; also `--flip-state`, `--flip-check`, `--flip-crc`, `--flip-input`. The injector lives in the sim-side `main.cpp`; the flight core has no knowledge of it and the flight object code is identical with or without it. The CSV carries `det` (0 none, 1 SEC, 2 DED, 3 CRC, 4 RANGE, 5 MISMATCH, 6 NONFINITE, 7 STALL, 8 GOLDEN, 9 INPUT), `fdir` (0 NOMINAL, 1 RECOVERING, 2 DEGRADED, 3 SAFE), `sec` and `reload` counters. `docs/how-it-works.html` walks through eight real flips and what each protection layer does with them; `docs/system-diagram.html` is the functional diagram. Both are single files and are also served by the LAN viewer at `/docs/<name>.html`.
 
 ## Layout
 
