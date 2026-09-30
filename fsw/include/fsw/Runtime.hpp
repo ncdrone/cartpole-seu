@@ -46,10 +46,10 @@ struct Runtime {
 #endif
     U32 fdir_state, fdir_state_inv; /**< (v, ~v): a flipped state word reads as SAFE, never as "more permissive" */
     U32 det_count, det_count_inv;   /**< detections in the current persistence window, (v, ~v) */
-    U32 window_start;               /**< tick the window opened */
-    U32 clean_ticks;                /**< consecutive clean ticks while RECOVERING or DEGRADED */
+    U32 window_start, window_start_inv; /**< tick the window opened, (v, ~v): a mismatch on read is SAFE */
+    U32 clean_ticks, clean_ticks_inv;   /**< consecutive clean ticks while RECOVERING or DEGRADED, (v, ~v): a mismatch on read is SAFE */
     U32 stall_pending;              /**< harness reported skipped ticks; handled on the next decode */
-    F32 last_x, last_theta, last_thetadot; /**< last accepted sensor sample (input plausibility guard) */
+    F32 last_x, last_xdot, last_theta, last_thetadot; /**< last accepted sensor sample (input plausibility guard) */
     U32 have_last;                  /**< last_* holds an accepted sample */
     U32 input_rejects;              /**< consecutive rejected samples */
     U32 sec_total, reload_total, det_total, tick;

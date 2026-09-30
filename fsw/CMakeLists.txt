@@ -23,8 +23,9 @@ add_executable(cartpole_baseline src/main.cpp src/Runtime.cpp)
 target_compile_definitions(cartpole_baseline PRIVATE FSW_PROTECT=0)
 target_link_libraries(cartpole_baseline fsw)
 
-add_executable(test_controller tests/test_controller.cpp src/Runtime.cpp)
-target_compile_definitions(test_controller PRIVATE FSW_PROTECT=1)
+enable_testing()
+
+add_executable(test_controller tests/test_controller.cpp)
 target_link_libraries(test_controller fsw)
 
 add_executable(test_fdir tests/test_fdir.cpp src/Runtime.cpp)
@@ -33,3 +34,7 @@ target_link_libraries(test_fdir fsw)
 
 add_executable(test_protect tests/test_protect.cpp)
 target_link_libraries(test_protect fsw)
+
+add_test(NAME test_controller COMMAND test_controller)
+add_test(NAME test_fdir COMMAND test_fdir)
+add_test(NAME test_protect COMMAND test_protect)

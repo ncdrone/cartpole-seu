@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include "fsw/Runtime.hpp"
 #include "fsw/Plant.hpp"
 
@@ -183,15 +184,17 @@ int main() {
     }
     { // (m) one case per plausibility rule; first reject holds without reload, a second consecutive reject reloads
         const F32 nan = std::nanf("");
-        const Input bads[4] = { { 0.0f, 0.0f, nan, 0.0f, cfg::DT_S }, { 3.0f, 0.0f, 0.0f, 0.0f, cfg::DT_S },
-                                { 0.0f, 0.0f, 0.0f, 26.0f, cfg::DT_S }, { 0.0f, 0.0f, 1.0f, 0.0f, cfg::DT_S } };
-        for (U32 c = 0; c < 4U; ++c) {
+        const Input bads[5] = { { 0.0f, 0.0f, nan, 0.0f, cfg::DT_S }, { 3.0f, 0.0f, 0.0f, 0.0f, cfg::DT_S },
+                                { 0.0f, 0.0f, 0.0f, 26.0f, cfg::DT_S }, { 0.0f, 0.0f, 1.0f, 0.0f, cfg::DT_S },
+                                { 0.0f, 11.0f, 0.0f, 0.0f, cfg::DT_S } };
+        for (U32 c = 0; c < 5U; ++c) {
             Runtime rt; init(rt); tick(rt, 0.0f, o, t); tick(rt, 0.0f, o, t);
             Params p; State s;
             runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bads[c], o, t);
             assert(t.det == DET_INPUT);
             assert(rt.reload_total == 0U);
             assert(runtime_fdir(rt) == FDIR_RECOVERING);
+            if (c == 4U) assert(std::fabs(o.force) <= cfg::FORCE_LIMIT_N && o.fault == 0U);   // xdot held, not used
             if (c == 3U) {
                 runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bads[c], o, t);
                 assert(t.det == DET_INPUT);
@@ -211,6 +214,31 @@ int main() {
             assert(runtime_fdir(rt) == FDIR_SAFE);
         }
         std::printf("(m) plausibility rules ok\n");
+    }
+    { // (n) after SAFE nothing reads uninitialised memory: safe command and a valid mode on every tick
+        Runtime rt; init(rt); tick(rt, 0.02f, o, t);
+        for (U32 w = 2; w < 5; ++w) { double_flip(rt, w); tick(rt, 0.02f, o, t); }
+        assert(runtime_fdir(rt) == FDIR_SAFE);
+        for (U32 i = 0; i < 100U; ++i) {
+            Params p; State s;
+            std::memset(&p, 0xA5, sizeof p); std::memset(&s, 0xA5, sizeof s);   // a caller's garbage must not reach the output
+            const bool ok = runtime_decode(rt, p, s, t);
+            assert(!ok);
+            runtime_control(rt, p, p, s, make_in(0.02f), o, t);
+            assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U && t.mode <= 1U);
+        }
+        std::printf("(n) SAFE reads no garbage ok\n");
+    }
+    { // (o) a flipped clean_ticks mirror while RECOVERING reads as SAFE
+        Runtime rt; init(rt); tick(rt, 0.02f, o, t);
+        double_flip(rt, 2); tick(rt, 0.02f, o, t);
+        assert(runtime_fdir(rt) == FDIR_RECOVERING);
+        rt.clean_ticks ^= 1U;
+        tick(rt, 0.02f, o, t);
+        assert(runtime_fdir(rt) == FDIR_SAFE && t.fdir == FDIR_SAFE);
+        tick(rt, 0.02f, o, t);
+        assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U);
+        std::printf("(o) clean_ticks mirror ok\n");
     }
     std::printf("ALL FDIR TESTS PASSED\n");
     return 0;

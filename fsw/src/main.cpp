@@ -62,7 +62,6 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(a, "--flip-local")) { lf = parse_target(v, PFIELDS, 20, lmask); if (lf < 0) { std::fprintf(stderr, "bad --flip-local\n"); return 2; } }
         else if (!std::strcmp(a, "--flip-input")) { inf = parse_target(v, IFIELDS, 4, imask); if (inf < 0) { std::fprintf(stderr, "bad --flip-input\n"); return 2; } }
         else if (!std::strcmp(a, "--stall")) stall = std::atoi(v);
-        else if (!std::strcmp(a, "--gains")) { /* accepted for compatibility; gains are always designed on board now */ }
         else { std::fprintf(stderr, "usage: see the header of fsw/src/main.cpp\n"); return 2; }
     }
     if (!(dt > 0.0) || dt > 1.0 || substeps < 1 || substeps > 1000) { std::fprintf(stderr, "bad --dt / --substeps\n"); return 2; }

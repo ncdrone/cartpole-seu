@@ -28,7 +28,8 @@ void lqr_design_default(LqrDesign& d);
  * @param k_out     gain, u = -k.[x, xdot, theta, thetadot]
  * @param max_iter  Riccati iteration cap (bounded loop; 2000 is ample at dt = 10 ms)
  * @param tol       convergence: max |P_{k+1} - P_k| below tol
- * @return true on convergence with finite K; false otherwise (caller falls back to the golden table gains)
+ * @return true on convergence with finite K; false otherwise. The table is the offline cross-check (test_controller f);
+ *         the on-board solve is the only runtime source and init refuses to start if it does not converge.
  */
 bool lqr_solve(const PlantParams& pp, const LqrDesign& d, F32 k_out[4], U32 max_iter, F64 tol);
 

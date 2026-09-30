@@ -7,7 +7,7 @@
 
 namespace fsw {
 
-/** Configuration blob (future "ProtectedState"). POD, no pointers. */
+/** Configuration blob (the protected parameter store). POD, no pointers. */
 struct Params {
     F32 k[4];        /**< Gains on [x, xdot, theta, thetadot]; u = -k.s */
     F32 ki_x;        /**< Integral gain on cart position */
@@ -57,7 +57,8 @@ struct Output {
 void params_default(Params& p);
 /**
  * @brief Fill Params like params_default(), then replace the gains with the on-board Riccati solve for
- *        the given plant model. Falls back to the table (and returns false) if the solve does not converge.
+ *        the given plant model. The table is the offline cross-check (test_controller f); the on-board solve is the
+ *        only runtime source and init refuses to start if it does not converge (returns false).
  */
 bool params_design(Params& p, const PlantParams& model);
 /** @brief Zero State. */
@@ -71,7 +72,7 @@ void state_reseed(State& st);
 
 /**
  * @brief One control step. Pure function of (params, in, st); no statics.
- * @note TODO(protect): verify Params (and State) integrity before use.
+ * @note Integrity is verified by the caller (Runtime: decode -> CRC -> range table) before step().
  */
 void step(const Params& p, const Input& in, State& st, Output& out);
 

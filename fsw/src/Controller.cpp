@@ -1,14 +1,11 @@
 /** @file Controller.cpp */
 #include "fsw/Controller.hpp"
 #include "fsw/Lqr.hpp"
+#include "fsw/Math.hpp"
 #include <cmath>
 #include <cstring>
 
 namespace fsw {
-
-static F32 clampf(F32 v, F32 lim) {
-    return (v > lim) ? lim : ((v < -lim) ? -lim : v);
-}
 
 void params_default(Params& p) {
     std::memset(&p, 0, sizeof(p));
@@ -29,7 +26,7 @@ bool params_design(Params& p, const PlantParams& model) {
     params_default(p);
     LqrDesign d; lqr_design_default(d);
     F32 k[4];
-    if (!lqr_solve(model, d, k, cfg::LQR_MAX_ITER, cfg::LQR_TOL)) return false;   // keep table gains
+    if (!lqr_solve(model, d, k, cfg::LQR_MAX_ITER, cfg::LQR_TOL)) return false;   // on failure the caller (runtime_init) refuses to start
     for (U32 i = 0; i < 4U; ++i) p.k[i] = k[i];
     return true;
 }
@@ -68,7 +65,7 @@ void step(const Params& p, const Input& in, State& st, Output& out) {
     out.fault = 0; out.saturated = 0; out.pad[0] = 0; out.pad[1] = 0;
     st.tick++;
 
-    // TODO(protect): checksum/SECDED verify of p and st here; recover via verified golden reload + state_reseed().
+    // Integrity is verified by the caller (Runtime: decode -> CRC -> range table) before step().
 
     bool ok = std::isfinite(in.x) && std::isfinite(in.xdot) && std::isfinite(in.theta) &&
               std::isfinite(in.thetadot) && std::isfinite(in.dt) && in.dt > 0.0f &&
@@ -87,7 +84,7 @@ void step(const Params& p, const Input& in, State& st, Output& out) {
     }
 
     // Wrap theta to (-pi, pi] so a full rotation (or theta0 = -pi vs +pi) is not a 360 deg error.
-    const F32 theta = static_cast<F32>(std::remainder(static_cast<F64>(in.theta), 2.0 * 3.14159265358979323846));
+    const F32 theta = wrap_pi(in.theta);
     const F32 abs_th = (theta < 0.0f) ? -theta : theta;
     const F32 abs_thd = (in.thetadot < 0.0f) ? -in.thetadot : in.thetadot;
 

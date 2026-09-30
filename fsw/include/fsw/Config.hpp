@@ -30,8 +30,8 @@ static const F64 LQR_TOL      = 1e-12;   /**< Riccati convergence on max |dP| */
 
 /**
  * Golden table gains, u = -K [x, xdot, theta, thetadot]: the same design solved offline by
- * tools/compute_lqr_gains.py (scipy DARE, ZOH at DT). Used as the cross-check for the on-board
- * solve and as the fallback if the solve does not converge.
+ * tools/compute_lqr_gains.py (scipy DARE, ZOH at DT). The table is the offline cross-check (test_controller f);
+ * the on-board solve is the only runtime source and init refuses to start if it does not converge.
  */
 static const F32 GAIN_X      =  -2.962850f;
 static const F32 GAIN_XDOT   =  -5.556633f;
@@ -66,6 +66,7 @@ static const U32 FDIR_DEGRADED_CLEAN_TICKS = 200U;  /**< clean ticks in DEGRADED
 
 /* Input plausibility guard (protected build) */
 static const F32 PLAUS_MAX_RATE  = 25.0f;   /**< |thetadot| above this is not a physical sample [rad/s] */
+static const F32 PLAUS_MAX_XDOT  = 10.0f;   /**< |xdot| above this is not a physical sample [m/s] */
 static const F32 PLAUS_THETA_TOL = 0.05f;   /**< allowed |dtheta - trapezoid(thetadot)*dt| between accepted samples [rad] */
 static const F32 DEGRADED_CLAMP_FRAC = 0.5f;  /**< DEGRADED output clamp = FORCE_LIMIT_N * this */
 static const U32 STALE_MAX_TICKS     = 10U;   /**< actuator holds a stale command this long (100 ms), then fallback */

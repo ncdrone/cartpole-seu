@@ -3,26 +3,16 @@
 
 namespace fsw {
 
-/* The 32 odd-weight columns, generated once (bounded loop, no heap). Weight-3 values of 7 bits in ascending order:
- * 0x07,0x0B,0x0D,0x0E,0x13,0x15,0x16,0x19,0x1A,0x1C,0x23,0x25,0x26,0x29,0x2A,0x2C,0x31,0x32,0x34,0x38,
- * 0x43,0x45,0x46,0x49,0x4A,0x4C,0x51,0x52,0x54,0x58,0x61,0x62  (0x64,0x68,0x70 unused). */
+/* The 32 odd-weight columns of the H matrix: the weight-3 values of 7 bits in ascending order (0x64,0x68,0x70 unused).
+ * Generated once offline: for v in 1..127 with popcount(v) == 3, take the first 32. A compile-time table, so no
+ * lazy initialisation and no mutable static. test_protect checks the code exhaustively. */
+static const U8 HSIAO_COLS[32] = {
+    0x07, 0x0B, 0x0D, 0x0E, 0x13, 0x15, 0x16, 0x19, 0x1A, 0x1C, 0x23, 0x25, 0x26, 0x29, 0x2A, 0x2C,
+    0x31, 0x32, 0x34, 0x38, 0x43, 0x45, 0x46, 0x49, 0x4A, 0x4C, 0x51, 0x52, 0x54, 0x58, 0x61, 0x62 };
 static U8 popcount7(U8 v) { U8 c = 0; for (U32 i = 0; i < 7U; ++i) c = static_cast<U8>(c + ((v >> i) & 1U)); return c; }
 
-static const U8* columns() {
-    static U8 col[32];
-    static bool init = false;
-    if (!init) {
-        U32 k = 0;
-        for (U32 v = 1; v < 128U && k < 32U; ++v) {
-            if (popcount7(static_cast<U8>(v)) == 3U) { col[k] = static_cast<U8>(v); ++k; }
-        }
-        init = true;
-    }
-    return col;
-}
-
 U8 secded_encode(U32 data) {
-    const U8* col = columns();
+    const U8* col = HSIAO_COLS;
     U8 c = 0;
     for (U32 i = 0; i < 32U; ++i) { if ((data >> i) & 1U) c = static_cast<U8>(c ^ col[i]); }
     return c;
@@ -33,7 +23,7 @@ SecdedStatus secded_decode(U32& data, U8& check) {
     if (syn == 0U) return SECDED_OK;
     const U8 w = popcount7(syn);
     if ((w & 1U) == 0U) return SECDED_DED;               // even weight: two (or an even number of) flips
-    const U8* col = columns();
+    const U8* col = HSIAO_COLS;
     for (U32 i = 0; i < 32U; ++i) {                      // odd weight matching a column: that data bit flipped
         if (col[i] == syn) { data ^= (1U << i); return SECDED_SEC; }
     }
