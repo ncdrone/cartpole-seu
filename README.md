@@ -85,7 +85,7 @@ docker run --rm cartpole                        # verify = run_tests.sh --quick 
 docker run --rm cartpole tests                  # full run_tests.sh inside the container
 docker run --rm cartpole campaign --deadline    # any campaign.py flags
 docker run --rm cartpole backtest sim/scenarios/grid.json   # no matplotlib in the image: the map is skipped
-docker run --rm cartpole demo --theta0 0.6 --x0 -0.5 --seconds 8 > run.csv
+docker run --rm cartpole demo --theta0 3.14159 --seconds 8 > run.csv
 docker build --platform linux/amd64 -t cartpole:amd64 .     # x86 variant, on an Apple Silicon Mac
 ```
 
@@ -109,7 +109,7 @@ Params fields `k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swe
 Sim tools:
 
 ```
-python3 sim/render.py --theta0 0.6 --x0 -0.5            # matplotlib window: cart, pole, traces, force terms
+python3 sim/render.py --theta0 3.14159                 # matplotlib window: cart, pole, traces, force terms
 python3 sim/backtest.py --all                            # every scenario, stats after each
 python3 sim/backtest.py sim/scenarios/grid.json --show   # one scenario + basin map window
 python3 sim/backtest.py bench/rate.json --set dt=0.005,0.02 --set seconds=6
