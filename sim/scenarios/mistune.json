@@ -1,0 +1,9 @@
+{
+  "name": "mistune",
+  "note": "Controller designed for the nominal plant; plant mistuned +/-10% on cart mass, pole mass, half-length (27 corners) at four starts.",
+  "seconds": 10,
+  "theta0_deg": [5, 15, 25, 35],
+  "cart_mass": [0.9, 1.0, 1.1],
+  "pole_mass": [0.09, 0.1, 0.11],
+  "half_len": [0.45, 0.5, 0.55]
+}

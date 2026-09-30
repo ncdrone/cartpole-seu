@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cart-Pole System Diagram</title>
+<style>
+/* One file, no external resources: opens offline on a Mac, Pi or Jetson. NOIR tokens shared with how-it-works.html. */
+:root{--bg:#080808;--panel:#0d0d10;--line:#242429;--ink:#f2f2f2;--mute:#9a9aa2;--dim:#55555c;--orange:#ff6b35;--green:#33ff33;--red:#ff3355;--slate:#4a5568;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,"Helvetica Neue",Helvetica,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:48px 20px 90px}
+.mono,code,.eyebrow,.sec,figcaption,.k,.n{font-family:ui-monospace,Menlo,"SF Mono",Consolas,monospace}
+.eyebrow{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.eyebrow::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--orange)}
+h1{font-size:clamp(38px,6.5vw,66px);font-weight:800;letter-spacing:-.03em;line-height:1;margin:20px 0 12px}
+.sub{font-size:19px;color:var(--dim);max-width:60ch;margin:0 0 28px}
+.rule{position:relative;height:1px;background:var(--line);margin:0 0 44px}.rule::before{content:"";position:absolute;left:0;top:0;height:1px;width:72px;background:var(--orange)}
+h2{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px}
+section{margin:0 0 60px}
+.sec{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+.lede{color:var(--mute);max-width:78ch;margin:0 0 18px;font-size:15px}
+code{font-size:.88em;background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:1px 5px}
+figure{margin:0;background:var(--panel);border:1px solid var(--line);padding:18px 0 0}
+figcaption{font-size:12px;color:var(--mute);line-height:1.7;padding:14px 20px 16px;border-top:1px solid var(--line);margin-top:14px}
+figcaption b{color:var(--ink);font-weight:600}
+svg{display:block;width:100%;max-width:100%;height:auto;color:var(--ink)}
+/* SVG vocabulary */
+svg text{font-family:ui-monospace,Menlo,"SF Mono",Consolas,monospace;font-size:11px;fill:currentColor}
+svg .t{font-size:12px;font-weight:600}
+svg .th{font-size:13px;font-weight:700}
+svg .bn{font-size:11px;font-weight:700;text-anchor:middle}
+svg .bit{font-size:12px;text-anchor:middle}
+svg .cap{letter-spacing:.08em}
+svg .s{fill:var(--mute)} svg .dm{fill:var(--dim)} svg .o{fill:var(--orange)} svg .r{fill:var(--red)} svg .g{fill:var(--green)}
+svg .mid{text-anchor:middle} svg .end{text-anchor:end}
+.bx{fill:var(--panel);stroke:currentColor;stroke-opacity:.42}
+.bxo{fill:var(--panel);stroke:var(--orange);stroke-width:1.3}
+.bxd{fill:var(--panel);stroke:currentColor;stroke-opacity:.5;stroke-dasharray:4 3}
+.bxr{fill:var(--panel);stroke:var(--red);stroke-dasharray:4 3}
+.bxs{fill:none;stroke:var(--red);stroke-width:1.3}
+.ln{fill:none;stroke:currentColor;stroke-width:1.2}
+.lo{fill:none;stroke:var(--orange);stroke-width:1.4}
+.ld{fill:none;stroke:var(--orange);stroke-width:1.2;stroke-dasharray:5 4}
+.lr{fill:none;stroke:var(--red);stroke-width:1.2;stroke-dasharray:5 4}
+.bnd{fill:none;stroke:currentColor;stroke-opacity:.55;stroke-dasharray:7 5}
+.hl{stroke:var(--line)} .gl{stroke:var(--dim);stroke-dasharray:2 4}
+.dv{fill:none;stroke:currentColor;stroke-opacity:.25} .dvo{fill:none;stroke:var(--orange);stroke-opacity:.6} .dvr{fill:none;stroke:var(--red);stroke-opacity:.6}
+.bdg{fill:none;stroke:currentColor;stroke-opacity:.6} .bdgo{stroke:var(--orange);stroke-opacity:1}
+.mkd{fill:none;stroke:var(--mute)} .mkp{fill:var(--slate)}
+.mg{fill:var(--green)} .mo{fill:var(--orange)} .mr{fill:var(--red)} .mh{fill:var(--bg);stroke:var(--mute)} .mho{fill:var(--bg);stroke:var(--orange);stroke-width:1.4}
+.cr{fill:none;stroke:var(--red)} .cm{fill:none;stroke:currentColor;stroke-opacity:.3} .co{fill:none;stroke:var(--orange)}
+/* legend + status strip */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px 26px;font-size:13px;color:var(--mute)}
+.legend div{display:flex;align-items:center;gap:10px;min-width:0}
+.sw{flex:none;width:28px;height:0;border-top:1.5px solid var(--ink)}.sw.o{border-top-color:var(--orange)}.sw.od{border-top:1.5px dashed var(--orange)}
+.bs{flex:none;width:22px;height:13px;border:1px solid var(--mute)}.bs.o{border-color:var(--orange)}.bs.d{border-style:dashed}.bs.r{border-color:var(--red);border-style:dashed}
+.dot{flex:none;width:10px;height:10px;border-radius:50%}.dot.g{background:var(--green)}.dot.r{background:var(--red)}.dot.sl{background:var(--slate);border-radius:0}.dot.h{border:1px solid var(--mute);border-radius:0}
+.n{font-size:12px;color:var(--orange);flex:none;min-width:4ch}
+.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px}
+.col{background:var(--panel);border:1px solid var(--line);padding:16px 18px 10px;min-width:0}
+.k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:0 0 12px;display:flex;align-items:center;gap:10px}
+.rows{list-style:none;margin:0;padding:0;font-size:14px;color:var(--mute)}
+.rows li{display:flex;gap:12px;padding:7px 0;border-top:1px solid var(--line)}
+.rows li b{color:var(--ink);font-weight:600;flex:none;width:9.5em}
+.foot{border-top:1px solid var(--line);padding-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim);line-height:1.7}
+@media (max-width:560px){.wrap{padding:32px 16px 60px}figcaption{padding:12px 14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Orca assignment · system diagram · 2026-09-29</div>
+  <h1>Cart-Pole System Diagram</h1>
+  <p class="sub">Where the code runs, what one 10 ms control tick does, how the protected data is laid out, what three real bit flips do, and how fault management escalates. Orange marks the path from a fault to its repair.</p>
+  <div class="rule"></div>
+
+  <!-- ============================== P1 ============================== -->
+  <section>
+    <div class="sec">p1 · where the code runs</div>
+    <h2>System context</h2>
+    <p class="lede">Three run paths, one flight core. The dashed line is the flight/sim boundary: only typed frames cross it.</p>
+    <figure>
+    <svg viewBox="0 0 1060 580" role="img" aria-label="System context: three run paths (Mac metal, Pi or Jetson metal with a LAN viewer, Docker pinned image) build the same source with the same flags into one flight core and one sim harness. Across the dashed flight/sim boundary, SensorFrame goes in; ActuatorCmd, telemetry and events come out; the harness writes CSV. The injector lives on the sim side and XORs one bit of the encoded store.">
+      <defs>
+        <marker id="p1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="p1r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff3355"/></marker>
+      </defs>
+      <!-- run paths -->
+      <rect class="bx" x="13" y="10" width="330" height="88" rx="3"/>
+      <text class="t cap" x="27" y="32">MAC · METAL</text>
+      <text x="27" y="52">bash scripts/build_demo.sh</text>
+      <text class="s" x="27" y="68">Apple clang · arm64-darwin</text>
+      <text class="s" x="27" y="84">golden CSV + repro hash per envclass</text>
+      <rect class="bx" x="365" y="10" width="330" height="88" rx="3"/>
+      <text class="t cap" x="379" y="32">PI / JETSON · METAL + LAN VIEWER</text>
+      <text x="379" y="52">bash scripts/build_demo.sh --serve</text>
+      <text class="s" x="379" y="68">g++ · aarch64 Linux (Pi OS, L4T)</text>
+      <text class="s" x="379" y="84">viewer.html on any LAN browser :8080</text>
+      <rect class="bx" x="717" y="10" width="330" height="88" rx="3"/>
+      <text class="t cap" x="731" y="32">DOCKER · PINNED IMAGE</text>
+      <text x="731" y="52">docker run --rm cartpole</text>
+      <text class="s" x="731" y="68">debian@sha256 · g++ · glibc 2.36</text>
+      <text class="s" x="731" y="84">Mac ↔ Jetson: same image, same hash</text>
+      <path class="ln" d="M178,98V122" marker-end="url(#p1a)"/><text class="s" x="184" y="114">builds</text>
+      <path class="ln" d="M530,98V122" marker-end="url(#p1a)"/><text class="s" x="536" y="114">builds</text>
+      <path class="ln" d="M882,98V122" marker-end="url(#p1a)"/><text class="s" x="888" y="114">builds</text>
+      <rect class="bx" x="13" y="122" width="1034" height="44" rx="3"/>
+      <text x="27" y="140">same source, same flags · -O2 -ffp-contract=off · fast-math is a compile error · -Werror -fno-exceptions -fno-rtti · C++11</text>
+      <text class="s" x="27" y="156">bootstrap: detect → deps → build → verify (unit tests, golden CSV, repro sha256) → stamp build_info.json</text>
+      <path class="ln" d="M206,166V196" marker-end="url(#p1a)"/><text class="s" x="212" y="186">flight lib</text>
+      <path class="ln" d="M843,166V196" marker-end="url(#p1a)"/><text class="s" x="849" y="186">sim + harness</text>
+      <!-- boundary -->
+      <path class="bnd" d="M520,176V556"/>
+      <text class="dm cap end" x="510" y="190">FLIGHT</text><text class="dm cap" x="530" y="190">SIM</text>
+      <text class="s mid" x="520" y="574">flight / sim boundary: only typed frames cross it</text>
+      <!-- flight core -->
+      <rect class="bx" x="13" y="196" width="387" height="352" rx="3"/>
+      <text class="t" x="27" y="218">FLIGHT CORE <tspan class="dm">· fsw/ today, flight/ after the split</tspan></text>
+      <text class="s" x="27" y="238">tick(SensorFrame) → ActuatorCmd, tlm, events</text>
+      <text class="s" x="27" y="254">C++11 · no heap · no I/O · no clock · no statics</text>
+      <rect class="bxo" x="27" y="266" width="359" height="26" rx="2"/><text class="o" x="39" y="283">encoded store ← golden params_default()</text>
+      <rect class="bx" x="27" y="302" width="359" height="26" rx="2"/><text x="39" y="319">decode: SECDED → CRC-32C → range table</text>
+      <rect class="bx" x="27" y="338" width="359" height="26" rx="2"/><text x="39" y="355">step(): swing-up → LQR, pure, re-entrant</text>
+      <rect class="bx" x="27" y="374" width="359" height="26" rx="2"/><text x="39" y="391">dual exec · output guard |u| ≤ 20 N (cfg::)</text>
+      <rect class="bxo" x="27" y="410" width="359" height="26" rx="2"/><text class="o" x="39" y="427">FDIR: NOMINAL · RECOVERING · DEGRADED · SAFE</text>
+      <rect class="bx" x="27" y="446" width="359" height="26" rx="2"/><text x="39" y="463">plausibility guard on every SensorFrame</text>
+      <line class="hl" x1="27" y1="496" x2="386" y2="496"/>
+      <text x="27" y="518">identical object code, injection on or off</text>
+      <text class="s" x="27" y="536">--flip is a runtime flag of the harness</text>
+      <!-- sim side -->
+      <rect class="bxd" x="640" y="196" width="407" height="104" rx="3"/>
+      <text class="t" x="654" y="218">PLANT LOOP <tspan class="dm">· sim side</tspan></text>
+      <text class="s" x="654" y="240">actuator model: freshness in ticks, ZOH on u</text>
+      <text class="s" x="654" y="262">plant_step(): cart-pole, RK4, Florian, F64</text>
+      <text class="s" x="654" y="284">sensors: PlantState → SensorFrame (F32)</text>
+      <rect class="bxr" x="640" y="318" width="407" height="62" rx="3"/>
+      <text class="t" x="654" y="340">INJECTOR <tspan class="dm">· harness main.cpp</tspan></text>
+      <text x="654" y="358">--flip field:bit --flip-tick N</text>
+      <text class="s" x="654" y="372">XOR one Params bit in place; it stays until rewritten</text>
+      <rect class="bxd" x="640" y="398" width="407" height="74" rx="3"/>
+      <text class="t" x="654" y="418">HARNESS <tspan class="dm">· cartpole_demo</tspan></text>
+      <text class="s" x="654" y="436">runs the loop, prints one CSV row per tick:</text>
+      <text class="s" x="654" y="452">tick,t,x,xdot,theta,thetadot,u,fault,</text>
+      <text class="s" x="654" y="466">u_x,u_xd,u_th,u_thd,u_i,integ,sat</text>
+      <path class="ln" d="M843,472V496" marker-end="url(#p1a)"/><text class="s" x="849" y="488">CSV</text>
+      <rect class="bxd" x="640" y="496" width="407" height="52" rx="3"/>
+      <text class="t" x="654" y="516">TOOLS <tspan class="dm">· sim/</tspan></text>
+      <text class="s" x="654" y="536">backtest.py · render.py · serve.py → viewer.html</text>
+      <!-- crossings -->
+      <path class="ln" d="M400,214H640" marker-end="url(#p1a)"/>
+      <text x="408" y="206">ActuatorCmd</text><text class="s" x="408" y="228">F [N] + seq#</text>
+      <path class="ln" d="M640,250H400" marker-end="url(#p1a)"/>
+      <text x="528" y="242">SensorFrame</text><text class="s" x="528" y="264">tick,x,ẋ,θ,θ̇</text>
+      <path class="lr" d="M640,349H600V279H386" marker-end="url(#p1r)"/>
+      <text class="r" x="528" y="296">XOR 1 bit</text><text class="r" x="528" y="310">at tick N</text>
+      <path class="ln" d="M400,436H640" marker-end="url(#p1a)"/>
+      <text x="408" y="428">tlm + events</text><text class="s" x="408" y="450">FDIR, SEC, DED</text>
+    </svg>
+    <figcaption><b>Claim:</b> there is one flight core, and the three run paths only change the toolchain around it. Everything that crosses the dashed line is a typed frame: SensorFrame in; ActuatorCmd, telemetry and events out; the harness turns telemetry into CSV. The injector is a runtime flag of the sim-side harness, so the flight object code is the same with injection on or off. <b>Gap, stated:</b> today <code>Plant.cpp</code> is still linked into <code>libfsw.a</code> and the harness is <code>fsw/src/main.cpp</code>; the flight/ vs sim/ split and the typed frames are designed (research/04 F6).</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================== P2 ============================== -->
+  <section>
+    <div class="sec">p2 · the main event · one 10 ms tick</div>
+    <h2>One control tick</h2>
+    <p class="lede">Integrity before meaning, meaning before use, and the command bounded by constants the corruptible blob cannot touch. Every detector reports to FDIR in the same tick.</p>
+    <figure>
+    <svg viewBox="0 0 1060 566" role="img" aria-label="One control tick, left to right: 1 volatile encoded store; 2 decode with SECDED per word then CRC-32C over the corrected plaintext; 3 range table; 4 pure step with swing-up to LQR handoff; 5 dual execution compare; 6 output guard with a 20 N compile-time clamp; 7 FDIR. Stage 8 closes the loop: command plus sequence number to the actuator monitor, plant, sensors and plausibility guard, back to step as next tick's input. Dashed orange detection lines from stages 2, 3, 5, 6 and 8 reach FDIR; on any detection FDIR reloads the CRC-verified golden parameters into the store. A time strip shows the 10 ms tick, the 300 ms recovery budget, and the 0.3 to 1.3 s window before a pole at zero force is lost.">
+      <defs>
+        <marker id="p2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="p2o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker>
+      </defs>
+      <!-- golden + recovery loop -->
+      <rect class="bxo" x="13" y="8" width="200" height="56" rx="3"/>
+      <text class="t o" x="25" y="28">golden · params_default()</text>
+      <text class="s" x="25" y="44">cfg:: literals, read-only</text>
+      <text class="s" x="25" y="58">CRC pinned: 0xBFAA04E8</text>
+      <path class="lo" d="M1047,196H1053V36H213" marker-end="url(#p2o)"/>
+      <text class="o" x="232" y="30">on any detection: FDIR reloads golden → verifies its CRC → re-encodes the store → reseeds the θ̇ filter → RECOVERING</text>
+      <path class="lo" d="M74,64V120" marker-end="url(#p2o)"/><text class="o" x="82" y="96">re-encode</text>
+      <!-- detection bus -->
+      <path class="ld" d="M226,120V100H986V120" marker-end="url(#p2o)"/>
+      <path class="ld" d="M378,120V100M682,120V100M834,120V100"/>
+      <text class="o" x="232" y="94">DED · CRC ≠ ref</text>
+      <text class="o" x="384" y="94">out of band</text>
+      <text class="o" x="688" y="94">u₁ ≠ u₂</text>
+      <text class="o" x="840" y="94">NaN · |u| &gt; 20 N</text>
+      <!-- stage 1 -->
+      <g transform="translate(13,0)">
+        <rect class="bxo" y="120" width="122" height="176" rx="3"/><circle class="bdg bdgo" cx="17" cy="139" r="9"/><text class="bn o" x="17" y="143">1</text><text class="t o" x="32" y="143">store</text>
+        <text x="10" y="162">volatile words</text><text class="s" x="10" y="177">Params 9 × F32</text><text class="s" x="10" y="192">7 check bits/wd</text><text class="s" x="10" y="207">CRC-32C, 36 B,</text>
+        <text class="s" x="10" y="222">fixed at init</text><text class="s" x="10" y="237">State 4 words,</text><text class="s" x="10" y="252">re-encoded after</text><text class="s" x="10" y="267">invariants pass</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkd" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">designed r4,5</text>
+      </g>
+      <!-- stage 2 -->
+      <g transform="translate(165,0)">
+        <rect class="bx" y="120" width="122" height="176" rx="3"/><circle class="bdg" cx="17" cy="139" r="9"/><text class="bn" x="17" y="143">2</text><text class="t" x="32" y="143">decode</text>
+        <text class="s" x="10" y="162">SECDED per word</text><text class="s" x="10" y="177">syndrome 0: ok</text><text class="s" x="10" y="192">1 bit: fix,</text><text class="s" x="10" y="207">scrub + count</text>
+        <text class="s" x="10" y="222">2 bits: DED</text><text x="10" y="237">THEN CRC-32C</text><text class="s" x="10" y="252">over corrected</text><text class="s" x="10" y="267">plaintext</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkd" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">designed r4,5</text>
+      </g>
+      <!-- stage 3 -->
+      <g transform="translate(317,0)">
+        <rect class="bx" y="120" width="122" height="176" rx="3"/><circle class="bdg" cx="17" cy="139" r="9"/><text class="bn" x="17" y="143">3</text><text class="t" x="32" y="143">range table</text>
+        <text class="s" x="10" y="162">sign + band</text><text class="s" x="10" y="177">per field, from</text><text class="s" x="10" y="192">cfg:: bounds</text><text x="10" y="207">k2 ∈ [−95, −23]</text>
+        <text class="s" x="10" y="222">alpha ∈ (0, 1]</text><text x="10" y="237">flim == 20.0</text><text class="s" x="10" y="252">(the constant)</text><text class="s" x="10" y="267">ECC-independent</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkd" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">designed r1</text>
+      </g>
+      <!-- stage 4 -->
+      <g transform="translate(469,0)">
+        <rect class="bx" y="120" width="122" height="176" rx="3"/><circle class="bdg" cx="17" cy="139" r="9"/><text class="bn" x="17" y="143">4</text><text class="t" x="32" y="143">step()</text>
+        <text class="s" x="10" y="162">pure, no statics</text><text class="s" x="10" y="177">θ wrap (−π, π]</text><text class="s" x="10" y="192">energy swing-up</text><text class="s" x="10" y="207">→ LQR handoff</text>
+        <text class="s" x="10" y="222">(hysteresis)</text><text x="10" y="237">u = −K·[x,ẋ,θ,θ̇]</text><text class="s" x="10" y="252">K from DARE</text><text class="s" x="10" y="267">solved at init</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkp" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">partial r1–3</text>
+      </g>
+      <!-- stage 5 -->
+      <g transform="translate(621,0)">
+        <rect class="bx" y="120" width="122" height="176" rx="3"/><circle class="bdg" cx="17" cy="139" r="9"/><text class="bn" x="17" y="143">5</text><text class="t" x="32" y="143">dual exec</text>
+        <text class="s" x="10" y="162">step() again on</text><text class="s" x="10" y="177">copies of p,s,in</text><text class="s" x="10" y="192">compare</text><text x="10" y="207">u₁ == u₂</text>
+        <text class="s" x="10" y="222">catches a flip</text><text class="s" x="10" y="237">in a register or</text><text class="s" x="10" y="252">local mid-step</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkd" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">designed r9</text>
+      </g>
+      <!-- stage 6 -->
+      <g transform="translate(773,0)">
+        <rect class="bx" y="120" width="122" height="176" rx="3"/><circle class="bdg" cx="17" cy="139" r="9"/><text class="bn" x="17" y="143">6</text><text class="t" x="32" y="143">output guard</text>
+        <text class="s" x="10" y="162">isfinite(u)</text><text x="10" y="177">|u| ≤ 20 N from</text><text class="s" x="10" y="192">cfg:: constant,</text><text x="10" y="207">NOT from Params</text>
+        <text class="s" x="10" y="222">|Δu| ≤ rate lim</text><text class="s" x="10" y="237">fallback force</text><text class="s" x="10" y="252">also constant</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkp" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">partial r1</text>
+      </g>
+      <!-- stage 7 -->
+      <g transform="translate(925,0)">
+        <rect class="bxo" y="120" width="122" height="176" rx="3"/><circle class="bdg bdgo" cx="17" cy="139" r="9"/><text class="bn o" x="17" y="143">7</text><text class="t o" x="32" y="143">FDIR</text>
+        <text x="10" y="162">NOMINAL</text><text x="10" y="177">RECOVERING</text><text x="10" y="192">DEGRADED</text><text x="10" y="207">SAFE (latched)</text>
+        <text class="s" x="10" y="222">state = (v, ~v)</text><text class="s" x="10" y="237">HD-16 codes,</text><text class="s" x="10" y="252">default → SAFE</text>
+        <line class="hl" x1="0" y1="275" x2="122" y2="275"/><rect class="mkd" x="10" y="281" width="8" height="8"/><text class="s" x="24" y="289">designed r6</text>
+      </g>
+      <!-- pipeline arrows -->
+      <path class="ln" d="M135,208H165" marker-end="url(#p2a)"/><text class="s mid" x="150" y="201">w,c</text>
+      <path class="ln" d="M287,208H317" marker-end="url(#p2a)"/><text class="s mid" x="302" y="201">p,s</text>
+      <path class="ln" d="M439,208H469" marker-end="url(#p2a)"/><text class="s mid" x="454" y="201">p,s</text>
+      <path class="ln" d="M591,208H621" marker-end="url(#p2a)"/><text class="s mid" x="606" y="201">u₁</text>
+      <path class="ln" d="M743,208H773" marker-end="url(#p2a)"/><text class="s mid" x="758" y="201">u</text>
+      <path class="ln" d="M895,208H925" marker-end="url(#p2a)"/><text class="s mid" x="910" y="201">u</text>
+      <!-- State write-back and next-tick input -->
+      <path class="ln" d="M480,296V322H104V296" marker-end="url(#p2a)"/>
+      <text class="s" x="128" y="316">s → store, only if invariants pass</text>
+      <path class="ln" d="M515,360V296" marker-end="url(#p2a)"/><text class="s end" x="509" y="350">in: next tick</text>
+      <!-- stage 8: loop -->
+      <path class="ln" d="M1010,296V360" marker-end="url(#p2a)"/><text class="s" x="1016" y="324">cmd +</text><text class="s" x="1016" y="338">seq#</text>
+      <g transform="translate(932,0)"><rect class="bxd" y="360" width="108" height="58" rx="3"/><text class="t mid" x="54" y="378">actuator</text><text class="s mid" x="54" y="394">seq# fresh?</text><text class="s mid" x="54" y="408">stale → backup</text></g>
+      <g transform="translate(780,0)"><rect class="bxd" y="360" width="108" height="58" rx="3"/><text class="t mid" x="54" y="378">plant</text><text class="s mid" x="54" y="394">cart-pole RK4</text><text class="s mid" x="54" y="408">Florian, F64</text></g>
+      <g transform="translate(628,0)"><rect class="bxd" y="360" width="108" height="58" rx="3"/><text class="t mid" x="54" y="378">sensors</text><text class="s mid" x="54" y="394">x, ẋ, θ, θ̇</text><text class="s mid" x="54" y="408">SensorFrame</text></g>
+      <g transform="translate(476,0)"><rect class="bx" y="360" width="108" height="58" rx="3"/><text class="t mid" x="54" y="378">plausibility</text><text class="s mid" x="54" y="394">|Δθ−θ̇·dt|≤tol</text><text class="s mid" x="54" y="408">reject → hold</text></g>
+      <path class="ln" d="M932,389H888" marker-end="url(#p2a)"/><text class="s mid" x="910" y="382">F [N]</text>
+      <path class="ln" d="M780,389H736" marker-end="url(#p2a)"/><text class="s mid" x="758" y="382">state</text>
+      <path class="ln" d="M628,389H584" marker-end="url(#p2a)"/><text class="s mid" x="606" y="382">frame</text>
+      <path class="ld" d="M950,360V296" marker-end="url(#p2o)"/><text class="o end" x="944" y="330">stale &gt; N ticks</text>
+      <path class="ld" d="M572,360V336H950"/><text class="o" x="578" y="330">implausible</text>
+      <circle class="bdg" cx="486" cy="436" r="9"/><text class="bn" x="486" y="440">8</text>
+      <text class="s" x="502" y="440">cmd + seq# → actuator monitor → plant → sensors → plausibility → next tick</text>
+      <!-- key -->
+      <text x="13" y="372">w,c</text><text class="s" x="46" y="372">encoded words + check bytes</text>
+      <text x="13" y="387">p,s</text><text class="s" x="46" y="387">local Params, State copies</text>
+      <text x="13" y="402">u</text><text class="s" x="46" y="402">force command [N]</text>
+      <text x="13" y="417">in</text><text class="s" x="46" y="417">Input from SensorFrame</text>
+      <rect class="bxd" x="13" y="425" width="22" height="10" rx="1"/><text class="s" x="46" y="434">sim side</text>
+      <!-- time budget -->
+      <text class="dm cap" x="13" y="497">TIME BUDGET</text>
+      <rect x="120" y="486" width="6.6" height="14" fill="currentColor"/><text class="s" x="132" y="497">1 tick = 10 ms</text>
+      <rect class="bxs" x="317.1" y="486" width="657.2" height="14"/><text class="r" x="327" y="497">zero force: pole unrecoverable between 0.3 and 1.3 s, depending on angle</text>
+      <rect x="120" y="510" width="197.1" height="6" fill="#ff6b35"/><text class="s" x="327" y="518">recovery budget ≈ 300 ms = 30 ticks · the designed reload completes inside the detecting tick</text>
+      <path class="ln" d="M120,540H1040M120,540v5M317.1,540v5M448.6,540v5M777.1,540v5M974.3,540v5"/>
+      <text class="dm mid" x="120" y="558">0</text><text class="dm mid" x="317.1" y="558">0.3 s</text><text class="dm mid" x="448.6" y="558">0.5 s</text><text class="dm mid" x="777.1" y="558">1.0 s</text><text class="dm mid" x="974.3" y="558">1.3 s</text>
+    </svg>
+    <figcaption><b>Claim:</b> each 10 ms tick decodes the store into local copies, proves integrity (SECDED, then CRC-32C over the corrected words) before meaning (range table), runs the pure law twice, and bounds the command with a 20 N constant that no flip in <code>Params</code> can move. Every detector reports to FDIR in the same tick and the golden reload completes inside that tick, so none of the ~300 ms the pole allows is spent. Footer squares: slate = partial (exists today, needs the listed rows), hollow = designed; rN = row N of the merged fix order in research/summary.html. Only the plant, the LQR law and the <code>isfinite</code> + clamp code run today.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================== P3 ============================== -->
+  <section>
+    <div class="sec">p3 · the bytes being protected</div>
+    <h2>Data layout</h2>
+    <p class="lede">The real structs from <code>Controller.hpp</code>, drawn to byte scale, then the encoded store and the IEEE-754 anatomy of two real words.</p>
+    <figure>
+    <svg viewBox="0 0 1060 596" role="img" aria-label="Data layout: Params is 36 bytes, nine F32 words k0 to k3, ki_x, integ_limit, dfilt_alpha, force_limit and safe_force, with force_limit and safe_force moving out to compile-time constants. State is 16 bytes: integ, thdot_filt, tick, filt_init and three pad bytes. The encoded store holds nine data words, nine check bytes, a CRC reference word with its own check byte, and four State words with check bytes. Golden is params_default built from literals with a pinned CRC. Bit anatomy of 20.0f (0x41A00000) and -47.37f (0xC23D7EB3) shows that sign and exponent flips are the dangerous ones.">
+      <defs>
+        <marker id="p3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="p3o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker>
+      </defs>
+      <!-- Params -->
+      <text class="t" x="13" y="64">Params</text><text class="s" x="13" y="80">36 B</text><text class="s" x="13" y="94">9 × F32</text>
+      <text class="dm" x="104" y="34">+0</text><text class="dm" x="208" y="34">+4</text><text class="dm" x="312" y="34">+8</text><text class="dm" x="416" y="34">+12</text><text class="dm" x="520" y="34">+16</text><text class="dm" x="624" y="34">+20</text><text class="dm" x="728" y="34">+24</text><text class="dm" x="832" y="34">+28</text><text class="dm" x="936" y="34">+32</text>
+      <rect class="bx" x="100" y="40" width="728" height="60"/>
+      <path class="dv" d="M204,40v60M308,40v60M412,40v60M516,40v60M620,40v60M724,40v60"/>
+      <rect class="bxd" x="828" y="40" width="104" height="60"/><rect class="bxd" x="932" y="40" width="104" height="60"/>
+      <path class="dv" d="M126,96v4M152,96v4M178,96v4M230,96v4M256,96v4M282,96v4M334,96v4M360,96v4M386,96v4M438,96v4M464,96v4M490,96v4M542,96v4M568,96v4M594,96v4M646,96v4M672,96v4M698,96v4M750,96v4M776,96v4M802,96v4M854,96v4M880,96v4M906,96v4M958,96v4M984,96v4M1010,96v4"/>
+      <text class="mid" x="152" y="60">k[0]</text><text class="s mid" x="152" y="76">−2.963</text><text class="dm mid" x="152" y="92">0xC03D9F56</text>
+      <text class="mid" x="256" y="60">k[1]</text><text class="s mid" x="256" y="76">−5.557</text><text class="dm mid" x="256" y="92">0xC0B1CFF0</text>
+      <text class="mid" x="360" y="60">k[2]</text><text class="s mid" x="360" y="76">−47.37</text><text class="dm mid" x="360" y="92">0xC23D7EB3</text>
+      <text class="mid" x="464" y="60">k[3]</text><text class="s mid" x="464" y="76">−12.28</text><text class="dm mid" x="464" y="92">0xC14467C3</text>
+      <text class="mid" x="568" y="60">ki_x</text><text class="s mid" x="568" y="76">0.0</text><text class="dm mid" x="568" y="92">0x00000000</text>
+      <text class="mid" x="672" y="60">integ_limit</text><text class="s mid" x="672" y="76">5.0</text><text class="dm mid" x="672" y="92">0x40A00000</text>
+      <text class="mid" x="776" y="60">dfilt_alpha</text><text class="s mid" x="776" y="76">1.0</text><text class="dm mid" x="776" y="92">0x3F800000</text>
+      <text class="mid" x="880" y="60">force_limit</text><text class="s mid" x="880" y="76">20.0</text><text class="dm mid" x="880" y="92">0x41A00000</text>
+      <text class="mid" x="984" y="60">safe_force</text><text class="s mid" x="984" y="76">0.0</text><text class="dm mid" x="984" y="92">0x00000000</text>
+      <path class="ln" d="M932,100V128" marker-end="url(#p3a)"/><text class="s end" x="926" y="120">move out · r1</text>
+      <rect class="bx" x="828" y="128" width="208" height="56" rx="3"/>
+      <text class="t" x="840" y="146">cfg:: constants</text><text x="840" y="162">FORCE_LIMIT_N = 20.0f</text><text x="840" y="176">SAFE_FORCE_N = 0.0f</text>
+      <!-- State -->
+      <text class="t" x="13" y="152">State</text><text class="s" x="13" y="168">16 B</text>
+      <text class="dm" x="104" y="122">+0</text><text class="dm" x="208" y="122">+4</text><text class="dm" x="312" y="122">+8</text><text class="dm" x="415" y="122">+12</text><text class="dm" x="441" y="122">+13</text>
+      <rect class="bx" x="100" y="128" width="416" height="60"/>
+      <path class="dv" d="M204,128v60M308,128v60M412,128v60M438,128v60"/><path class="dv" stroke-dasharray="2 3" d="M464,128v60M490,128v60"/>
+      <text class="mid" x="152" y="152">integ</text><text class="s mid" x="152" y="168">F32</text>
+      <text class="mid" x="256" y="152">thdot_filt</text><text class="s mid" x="256" y="168">F32</text>
+      <text class="mid" x="360" y="152">tick</text><text class="s mid" x="360" y="168">U32</text>
+      <text class="s mid" x="425" y="162">U8</text><path class="dv" d="M425,188v8"/><text class="s mid" x="425" y="206">filt_init</text>
+      <text class="mid" x="477" y="152">pad[3]</text><text class="s mid" x="477" y="168">3 × U8</text>
+      <text class="s" x="540" y="146">re-encoded every tick, but only</text><text class="s" x="540" y="162">after invariants pass: isfinite,</text><text class="s" x="540" y="178">|integ| ≤ 5, |θ̇ filter| bounded</text>
+      <!-- encoded store -->
+      <text class="t o" x="13" y="252">store</text><text class="s" x="13" y="268">volatile</text>
+      <text class="o mid" x="638.5" y="230">c0…c8</text><text class="o mid" x="767.5" y="230">c9</text><text class="o mid" x="1020" y="230">c0…c3</text>
+      <rect class="bxo" x="100" y="236" width="468" height="40"/><path class="dvo" d="M152,236v40M204,236v40M256,236v40M308,236v40M360,236v40M412,236v40M464,236v40M516,236v40"/>
+      <text class="mid" x="126" y="261">w0</text><text class="mid" x="178" y="261">w1</text><text class="mid" x="230" y="261">w2</text><text class="mid" x="282" y="261">w3</text><text class="mid" x="334" y="261">w4</text><text class="mid" x="386" y="261">w5</text><text class="mid" x="438" y="261">w6</text><text class="mid" x="490" y="261">w7</text><text class="mid" x="542" y="261">w8</text>
+      <rect class="bxo" x="580" y="236" width="117" height="40"/><path class="dvo" d="M593,236v40M606,236v40M619,236v40M632,236v40M645,236v40M658,236v40M671,236v40M684,236v40"/>
+      <rect class="bxo" x="709" y="236" width="52" height="40"/><text class="mid" x="735" y="261">crc</text><rect class="bxo" x="761" y="236" width="13" height="40"/>
+      <rect class="bxo" x="786" y="236" width="208" height="40"/><path class="dvo" d="M838,236v40M890,236v40M942,236v40"/>
+      <text class="mid" x="812" y="261">s0</text><text class="mid" x="864" y="261">s1</text><text class="mid" x="916" y="261">s2</text><text class="mid" x="968" y="261">s3</text>
+      <rect class="bxo" x="994" y="236" width="52" height="40"/><path class="dvo" d="M1007,236v40M1020,236v40M1033,236v40"/>
+      <text class="s" x="100" y="292">Params words, decoded to locals every tick</text><text class="s" x="580" y="292">7 bits used</text><text class="s" x="709" y="292">CRC ref</text><text class="s" x="786" y="292">State words + check bytes</text>
+      <!-- golden -->
+      <rect class="bxo" x="100" y="330" width="468" height="54" rx="3"/>
+      <text class="t o" x="112" y="350">golden = params_default()</text>
+      <text class="s" x="112" y="366">cfg:: literals → read-only literal pool</text>
+      <text class="s" x="112" y="380">crc32c pinned by a unit test: 0xBFAA04E8</text>
+      <path class="lo" d="M540,330V276" marker-end="url(#p3o)"/><text class="o end" x="534" y="312">reload + re-encode</text>
+      <text class="s" x="600" y="350">in flight: F´ PrmDb loads params from a CRC32-prefixed file,</text>
+      <text class="s" x="600" y="366">kept in NVM behind hardware EDAC. On this laptop the</text>
+      <text class="s" x="600" y="380">golden is still DRAM; the pinned CRC is what makes it trusted.</text>
+      <!-- bit anatomy -->
+      <text class="r mid" x="190.5" y="432">sign</text><text class="r mid" x="285" y="432">exponent 30–23</text><text class="s mid" x="610.5" y="432">mantissa 22–0</text><text class="o mid" x="939.5" y="432">check c6–c0</text>
+      <path class="dvr" d="M181,438H200M202,438H368"/><path class="dv" d="M370,438H851"/><path class="dvo" d="M867,438H1012"/>
+      <text class="dm mid" x="190.5" y="452">31</text><text class="dm mid" x="211.5" y="452">30</text><text class="dm mid" x="358.5" y="452">23</text><text class="dm mid" x="379.5" y="452">22</text><text class="dm mid" x="841.5" y="452">0</text><text class="dm mid" x="876.5" y="452">c6</text><text class="dm mid" x="1002.5" y="452">c0</text>
+      <g id="p3grid">
+        <rect class="cr" x="180" y="460" width="21" height="22"/><rect class="cr" x="201" y="460" width="168" height="22"/>
+        <path class="dvr" d="M222,460v22M243,460v22M264,460v22M285,460v22M306,460v22M327,460v22M348,460v22"/>
+        <rect class="cm" x="369" y="460" width="483" height="22"/>
+        <path class="dv" d="M390,460v22M411,460v22M432,460v22M453,460v22M474,460v22M495,460v22M516,460v22M537,460v22M558,460v22M579,460v22M600,460v22M621,460v22M642,460v22M663,460v22M684,460v22M705,460v22M726,460v22M747,460v22M768,460v22M789,460v22M810,460v22M831,460v22"/>
+        <rect class="co" x="866" y="460" width="147" height="22"/><path class="dvo" d="M887,460v22M908,460v22M929,460v22M950,460v22M971,460v22M992,460v22"/>
+      </g>
+      <use href="#p3grid" transform="translate(0,56)"/>
+      <text x="13" y="475">flim <tspan class="s">0x41A00000</tspan></text>
+      <text class="bit" x="211.5 337.5 358.5 400.5 876.5 897.5 918.5 939.5 960.5 1002.5" y="475">1111111111</text>
+      <text class="bit dm" x="190.5 232.5 253.5 274.5 295.5 316.5 379.5 421.5 442.5 463.5 484.5 505.5 526.5 547.5 568.5 589.5 610.5 631.5 652.5 673.5 694.5 715.5 736.5 757.5 778.5 799.5 820.5 841.5 981.5" y="475">00000000000000000000000000000</text>
+      <text class="s" x="180" y="500">20.0f · <tspan class="r">bit 31</tspan> → −20: full-force positive feedback, fell 1.33 s · <tspan class="r">bit 30</tspan> → 5.9e−38: force pinned ~0 N, fell 2.51 s</text>
+      <text x="13" y="531">k2 <tspan class="s">0xC23D7EB3</tspan></text>
+      <text class="bit" x="190.5 211.5 316.5 400.5 421.5 442.5 463.5 505.5 547.5 568.5 589.5 610.5 631.5 652.5 694.5 736.5 757.5 820.5 841.5 876.5 960.5 981.5" y="531">1111111111111111111111</text>
+      <text class="bit dm" x="232.5 253.5 274.5 295.5 337.5 358.5 379.5 484.5 526.5 673.5 715.5 778.5 799.5 897.5 918.5 939.5 1002.5" y="531">00000000000000000</text>
+      <text class="s" x="180" y="556">−47.37f · <tspan class="r">bit 31</tspan> → +47.37: pushes the pole over, fell 2.10 s · <tspan class="r">bit 30</tspan> → −1.4e−37: no pole feedback, fell 5.16 s · bit 0: masked</text>
+      <text class="s" x="13" y="584">Of 256 single-bit flips in Params, one is non-finite (alpha bit 30 → +Inf). Every flip that dropped the pole hit a sign or exponent bit.</text>
+    </svg>
+    <figcaption><b>Claim:</b> <code>Params</code> is nine 32-bit words and every flip that dropped the pole landed in the top nine bits of a word (sign or exponent); across all 256 single-bit flips, no mantissa flip did. Moving <code>force_limit</code> and <code>safe_force</code> out to <code>cfg::</code> constants means no flip in the blob can move the clamp. Word values are the real <code>cfg::</code> defaults (golden CRC-32C over the 36 B recomputed here: 0xBFAA04E8). Check bytes 0x7D and 0x46 come from the reference extended-Hamming(39,32) codec behind how-it-works §3 (overall parity in c6); the flight build is planned to use Hsiao(39,32) masks (r5), whose check bytes differ. Fall times are measured runs of <code>cartpole_demo --flip</code> from θ₀ = 0.05 rad, flip at tick 100.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================== P4 ============================== -->
+  <section>
+    <div class="sec">p4 · real data · flip at tick 100 = 1.00 s</div>
+    <h2>Three fault stories</h2>
+    <p class="lede">The same gain word, k2 = −47.37, hit by one, two and three flips. Each row is a layer; each dot is where that layer fires.</p>
+    <figure>
+    <svg viewBox="0 0 1060 520" role="img" aria-label="Three fault stories on k2 with the flip at tick 100. (a) Bit 30: the unprotected baseline reads k2 as -1.4e-37 and the pole falls at 5.16 s with no fault flag; protected, SECDED corrects it with syndrome 37 and the command is unchanged. (b) Bits 30 and 31: SECDED reports DED, the CRC and range table also fail, FDIR reloads golden and enters RECOVERING, then returns to NOMINAL after M clean ticks. (c) Bits 4, 12 and 25: SECDED miscorrects to -2.96 with syndrome 4, the CRC 0x1794FDCD does not match 0xBFAA04E8, the range table also rejects it, and FDIR reloads golden.">
+      <!-- legend + axis -->
+      <circle class="mg" cx="18" cy="12" r="4.5"/><text class="s" x="27" y="16">corrected / pass</text>
+      <circle class="mo" cx="146" cy="12" r="4.5"/><text class="s" x="155" y="16">detects first</text>
+      <circle class="mr" cx="254" cy="12" r="4.5"/><text class="s" x="263" y="16">fault wins</text>
+      <circle class="mho" cx="18" cy="26" r="4.5"/><text class="s" x="27" y="30">also detects</text>
+      <circle class="mh" cx="146" cy="26" r="4.5"/><text class="s" x="155" y="30">checked, passes</text>
+      <text class="s mid" x="370" y="16">tick 99</text><text class="dm mid" x="370" y="30">0.99 s</text>
+      <text class="r mid" x="420" y="30">flip</text>
+      <text class="s mid" x="460" y="16">tick 100</text><text class="dm mid" x="460" y="30">1.00 s</text>
+      <text class="s mid" x="850" y="16">tick 100 + M</text><text class="dm mid" x="850" y="30">M·10 ms later</text>
+      <text class="s mid" x="1000" y="16">t = 5.16 s</text><text class="dm mid" x="1000" y="30">(a) only</text>
+      <path class="gl" d="M370,40V504M460,40V504M850,40V504M1000,40V204"/>
+      <path class="lr" d="M420,40V504"/>
+      <line class="hl" x1="13" y1="212" x2="1047" y2="212"/><line class="hl" x1="13" y1="364" x2="1047" y2="364"/>
+      <!-- (a) -->
+      <text class="t" x="13" y="62">(a) k2 bit 30 · single flip</text>
+      <text class="s" x="13" y="80">0xC23D7EB3 → 0x823D7EB3</text><text class="s" x="13" y="96">−47.37 → −1.4e−37</text>
+      <text class="dm" x="13" y="112">baseline lane: measured</text><text class="dm" x="13" y="128">other lanes: computed</text>
+      <text class="s" x="252" y="80">baseline</text><text class="s" x="252" y="102">SECDED</text><text class="s" x="252" y="124">CRC-32C</text><text class="s" x="252" y="146">range</text><text class="s" x="252" y="168">FDIR</text><text class="s" x="252" y="190">command</text>
+      <circle class="mr" cx="460" cy="76" r="5"/><text x="470" y="80">k2 = −1.4e−37 used · flag 0 · +0.41 N next tick</text>
+      <path class="lr" d="M836,76H916"/><circle class="mr" cx="1000" cy="76" r="5"/><text class="r end" x="990" y="80">pole falls</text>
+      <circle class="mg" cx="460" cy="98" r="5"/><text x="470" y="102">SEC · syndrome 37 · bit 30 restored, scrubbed</text>
+      <circle class="mh" cx="460" cy="120" r="5"/><text class="s" x="470" y="124">passes on the corrected words: 0xBFAA04E8</text>
+      <circle class="mh" cx="460" cy="142" r="5"/><text class="s" x="470" y="146">k2 = −47.37, in band [−95, −23]</text>
+      <circle class="mg" cx="460" cy="164" r="5"/><text x="470" y="168">stays NOMINAL · SEC counter +1 (telemetry only)</text>
+      <circle class="mg" cx="460" cy="186" r="5"/><text x="470" y="190">u identical to the fault-free run: zero effect</text>
+      <circle class="mg" cx="1000" cy="186" r="5"/><text class="g end" x="990" y="190">pole stays up</text>
+      <!-- (b) -->
+      <text class="t" x="13" y="236">(b) k2 bits 30+31 · double flip</text>
+      <text class="s" x="13" y="254">0xC23D7EB3 → 0x023D7EB3</text><text class="s" x="13" y="270">−47.37 → +1.4e−37</text><text class="dm" x="13" y="286">all lanes computed</text>
+      <text class="s" x="252" y="254">SECDED</text><text class="s" x="252" y="276">CRC-32C</text><text class="s" x="252" y="298">range</text><text class="s" x="252" y="320">FDIR</text><text class="s" x="252" y="342">command</text>
+      <circle class="mo" cx="460" cy="250" r="5"/><text x="470" y="254">DED · syndrome 3 · word untrusted, never used</text>
+      <circle class="mho" cx="460" cy="272" r="5"/><text class="s" x="470" y="276">0x4EE82E74 ≠ 0xBFAA04E8 (also fails)</text>
+      <circle class="mho" cx="460" cy="294" r="5"/><text class="s" x="470" y="298">+1.4e−37 is out of band (also fails)</text>
+      <circle class="mo" cx="460" cy="316" r="5"/><text class="o" x="470" y="320">→ RECOVERING: reload golden, re-encode, reseed θ̇</text>
+      <circle class="mg" cx="850" cy="316" r="5"/><text x="860" y="320">M clean ticks → NOMINAL</text>
+      <circle class="mg" cx="460" cy="338" r="5"/><text x="470" y="342">u at tick 100 from reloaded gains: no bad command</text>
+      <!-- (c) -->
+      <text class="t" x="13" y="388">(c) k2 bits 4+12+25 · triple flip</text>
+      <text class="s" x="13" y="406">0xC23D7EB3 → 0xC03D6EA3</text><text class="s" x="13" y="422">−47.37 → −2.96 after SEC</text><text class="dm" x="13" y="438">all lanes computed</text>
+      <text class="s" x="252" y="406">SECDED</text><text class="s" x="252" y="428">CRC-32C</text><text class="s" x="252" y="450">range</text><text class="s" x="252" y="472">FDIR</text><text class="s" x="252" y="494">command</text>
+      <circle class="mr" cx="460" cy="402" r="5"/><text x="470" y="406">syndrome 4 → SEC (wrong): k2 = −2.96, reports OK</text>
+      <circle class="mo" cx="460" cy="424" r="5"/><text x="470" y="428">0x1794FDCD ≠ 0xBFAA04E8 → detect</text>
+      <circle class="mho" cx="460" cy="446" r="5"/><text class="s" x="470" y="450">−2.96 ∉ [−95, −23] → rejects it independently</text>
+      <circle class="mo" cx="460" cy="468" r="5"/><text class="o" x="470" y="472">→ RECOVERING: reload golden, re-encode, reseed θ̇</text>
+      <circle class="mg" cx="850" cy="468" r="5"/><text x="860" y="472">M clean ticks → NOMINAL</text>
+      <circle class="mg" cx="460" cy="490" r="5"/><text x="470" y="494">u at tick 100 from reloaded gains: no bad command</text>
+    </svg>
+    <figcaption><b>Claim:</b> one flip is corrected with zero effect; two are refused and replaced; three that fool SECDED are caught twice, by the CRC and by the range table, independently. In every protected story the command at tick 100 already comes from correct gains, and detection latency is zero ticks. <b>Provenance:</b> the (a) baseline lane is a measured run (<code>cartpole_demo --theta0 0.05 --seconds 6 --flip k2:30 --flip-tick 100</code>; re-run for this page: falls at 5.16 s, fault flag 0). Every protected lane is computed by the reference SECDED/CRC-32C codec (how-it-works §3); the protected pipeline is not yet in the flight core.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================== P5 ============================== -->
+  <section>
+    <div class="sec">p5 · fault management</div>
+    <h2>FDIR state machine</h2>
+    <p class="lede">Escalation by persistence, recovery with hysteresis, and a SAFE state that only a command can leave.</p>
+    <figure>
+    <svg viewBox="0 0 1060 462" role="img" aria-label="FDIR state machine with four states. NOMINAL stays NOMINAL on a single-bit correction and counts it. Any detection (DED, CRC, range, dual-exec mismatch, guard trip, stale command, implausible sensor) moves NOMINAL to RECOVERING. M clean ticks return RECOVERING to NOMINAL. K detections in W ticks move RECOVERING to DEGRADED, and a high SEC count in W moves NOMINAL to DEGRADED. K clean windows return DEGRADED to NOMINAL. A detection or theta beyond its limit for P ticks moves DEGRADED to SAFE, which is latched; only an explicit two-step CLEAR command leaves SAFE. The state word is stored as value and complement with Hamming-distance-16 codes; any bad state word falls to SAFE.">
+      <defs>
+        <marker id="p5a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="p5o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker>
+        <marker id="p5r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff3355"/></marker>
+      </defs>
+      <!-- states -->
+      <rect class="bx" x="40" y="170" width="230" height="100" rx="4"/>
+      <text class="th" x="54" y="196">NOMINAL</text><text class="s" x="54" y="216">swing-up → LQR, full law</text><text class="s" x="54" y="232">every detector armed</text><text class="dm" x="54" y="254">code 0x5A5A5A5A</text>
+      <rect class="bxo" x="430" y="30" width="230" height="100" rx="4"/>
+      <text class="th o" x="444" y="56">RECOVERING</text><text class="s" x="444" y="76">golden reloaded, θ̇ reseeded</text><text class="s" x="444" y="92">integrator frozen</text><text class="dm" x="444" y="114">code 0xA5A5A5A5</text>
+      <rect class="bx" x="430" y="300" width="230" height="100" rx="4"/>
+      <text class="th" x="444" y="326">DEGRADED</text><text class="s" x="444" y="346">golden gains, pure LQR,</text><text class="s" x="444" y="362">integrator off, tight clamp</text><text class="dm" x="444" y="384">code 0x3C3C3C3C</text>
+      <rect class="bxs" x="780" y="170" width="220" height="100" rx="4"/><rect class="bxs" x="784" y="174" width="212" height="92" rx="3"/>
+      <text class="th r" x="796" y="196">SAFE · latched</text><text class="s" x="796" y="216">force = 0 N, constant</text><text class="s" x="796" y="232">loop declared lost</text><text class="dm" x="796" y="254">code 0xC3C3C3C3</text>
+      <!-- transitions -->
+      <path class="ln" d="M70,170C70,128 130,128 130,170" marker-end="url(#p5a)"/>
+      <text class="s" x="40" y="106">SEC: fix + scrub,</text><text class="s" x="40" y="120">count, stay</text>
+      <path class="lo" d="M230,170V64H430" marker-end="url(#p5o)"/>
+      <text class="o" x="240" y="42">DED · CRC · range · u₁≠u₂</text><text class="o" x="240" y="56">guard · stale · implausible</text>
+      <path class="ln" d="M430,104H255V170" marker-end="url(#p5a)"/><text class="s" x="282" y="120">M clean ticks</text>
+      <path class="lo" d="M530,130V300" marker-end="url(#p5o)"/><text class="o" x="540" y="212">K detections</text><text class="o" x="540" y="226">in W ticks</text>
+      <path class="lo" d="M155,270V340H430" marker-end="url(#p5o)"/><text class="o" x="170" y="332">SEC count &gt; N in W: stuck bit?</text>
+      <path class="ln" d="M430,380H110V270" marker-end="url(#p5a)"/><text class="s" x="180" y="396">K clean windows (hysteresis)</text>
+      <path class="lo" d="M660,350H950V270" marker-end="url(#p5o)"/><text class="o" x="672" y="342">detection, or |θ| &gt; θ_lim for P ticks</text>
+      <path class="ln" d="M860,170V64H660" marker-end="url(#p5a)"/><text class="s" x="672" y="56">CLEAR cmd only, two-step</text>
+      <circle cx="1047" cy="220" r="3" fill="#ff3355"/><path class="ln" d="M1044,220H1001" stroke="#ff3355" marker-end="url(#p5r)"/><text class="r" x="1008" y="244">any</text><text class="r" x="1008" y="258">state</text>
+      <!-- note -->
+      <line class="hl" x1="13" y1="414" x2="1047" y2="414"/>
+      <text class="s" x="13" y="434">State word stored as (v, ~v), codes at pairwise Hamming distance ≥ 16: a mismatch or an unknown code falls to switch default → SAFE.</text>
+      <text class="s" x="13" y="452">ECC detections act at once (a syndrome is definitive). Plausibility and staleness monitors need P or N consecutive ticks (persistence).</text>
+    </svg>
+    <figcaption><b>Claim:</b> FDIR escalates by persistence and never loops forever. A re-trip within W ticks degrades, a failing degraded loop goes SAFE, and SAFE is latched until an explicit command. A flip in the state word itself lands in SAFE, not in a quieter mode. M, K, W, P, N and θ_lim are design constants for <code>Config.hpp</code>; none is chosen yet. The CLEAR target (RECOVERING, so golden is reloaded before the law runs again) is a choice made for this diagram. Transition table from research/04 F2; state codes from research/04 F3.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================== legend + status ============================== -->
+  <section>
+    <div class="sec">legend</div>
+    <div class="legend">
+      <div><span class="sw"></span>data, every tick</div>
+      <div><span class="sw od"></span>detection report → FDIR, same tick</div>
+      <div><span class="sw o"></span>recovery: verified golden reload</div>
+      <div><span class="bs o"></span>protected store, golden, FDIR</div>
+      <div><span class="bs d"></span>sim side: plant, actuator model, sensors</div>
+      <div><span class="bs r"></span>injector (sim side) and injected faults</div>
+      <div><span class="dot g"></span>corrected, or check passed</div>
+      <div><span class="dot r"></span>fault reached the loop</div>
+      <div><span class="dot sl"></span>partial: exists, needs the rN change</div>
+      <div><span class="dot h"></span>designed, not built</div>
+      <div><span class="n">rN</span>row N of the merged fix order, research/summary.html</div>
+      <div><span class="n">p s u</span>local Params, State, force command [N]</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec">status · what exists vs what is drawn</div>
+    <h2>Built today vs designed</h2>
+    <p class="lede">Most of P2 and all of P5 are design. The measured numbers (P3 fall times, the P4 baseline lane) come from the built binary; the protected-pipeline numbers come from the reference codec.</p>
+    <div class="split">
+      <div class="col">
+        <div class="k"><span class="dot g"></span>built · runs today</div>
+        <ul class="rows">
+          <li><b>LQR baseline</b><span>pure <code>step()</code>, u = −K·[x, ẋ, θ, θ̇], K from the on-board Riccati solve (scipy cross-check to 1e-7); <code>isfinite</code> guard and a clamp that still reads <code>Params</code></span></li>
+          <li><b>Plant</b><span>cart-pole, RK4, Florian equations (<code>Plant.cpp</code>)</span></li>
+          <li><b>--flip injector</b><span><code>--flip field:bit --flip-tick N</code> in the harness <code>main.cpp</code></span></li>
+          <li><b>Back-test harness</b><span><code>sim/backtest.py</code>, scenarios basin, grid, mistune, rate, repro</span></li>
+          <li><b>Viewer</b><span><code>sim/render.py</code>, <code>bench/serve.py</code> + <code>viewer.html</code> over LAN</span></li>
+          <li><b>Bootstrap</b><span><code>scripts/build_demo.sh</code> for Mac, Pi, Jetson; golden CSV + repro hash</span></li>
+          <li><b>Docker</b><span>image pinned by <code>debian@sha256</code> digest</span></li>
+          <li><b>On-board LQR design</b><span>Riccati solve at init (<code>fsw/src/Lqr.cpp</code>), scipy cross-check to 1e-7; θ wrapped to (−π, π]</span></li>
+          <li><b>Swing-up</b><span>energy shaping → LQR handoff with hysteresis; grid 905/905, mistune 108/108, hanging-down balanced at 2.4 s</span></li>
+          <li><b>Protected build</b><span>volatile encoded store, Hsiao SECDED(39,32) + CRC-32C (decode → CRC order), range table, dual execution, output guard from constants, 3-state FDIR with (v,~v) and verified golden reload; campaign: 640/640 corrected, 60/60 double flips recovered, 0 SDC</span></li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="k"><span class="dot h"></span>designed · fix-order row</div>
+        <ul class="rows">
+          <li><span class="n">r1</span><span>output guard from <code>cfg::</code> constants, per-field range table</span></li>
+          <li><span class="n">r4</span><span>volatile encoded store, decode to locals, State encoded after invariants</span></li>
+          <li><span class="n">r5</span><span>SECDED(39,32) + CRC-32C, decode → CRC order, write-back on SEC</span></li>
+          <li><span class="n">r6</span><span>verified golden reload, 4-state FDIR, latched SAFE, (v, ~v) state word</span></li>
+          <li><span class="n">r7</span><span>actuator-side freshness monitor in ticks</span></li>
+          <li><span class="n">r9</span><span>dual-execute compare, input plausibility guard</span></li>
+          <li><span class="n">F6</span><span>flight/ vs sim/ library split and typed frames (research/04)</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">Sources: <code>fsw/include/fsw/Controller.hpp</code>, <code>Config.hpp</code>, <code>fsw/src/main.cpp</code> (structs, defaults, CSV columns, injector); <code>docs/how-it-works.html</code> §2–§5 (measured flips, codec results, ladder, coverage); research/02 F1–F3, F7, F9 and research/04 F2, F3, F6 (store order, watchdog, FDIR table, boundary); research/summary.html (fix order); <code>docs/GLOSSARY.md</code> §7 (names).</div>
+</div>
+</body>
+</html>

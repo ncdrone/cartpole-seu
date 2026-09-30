@@ -1,0 +1,9 @@
+{
+  "name": "repro",
+  "note": "Reproducibility probe: 64 seeded random non-moving starts inside and around the basin. Same software constraint (arch + compiler + libm + flags) must give the same result hash.",
+  "seconds": 8,
+  "samples": 64,
+  "seed": 20260929,
+  "theta0_deg": {"min": -60, "max": 60},
+  "x0_m": {"min": -1.0, "max": 1.0}
+}

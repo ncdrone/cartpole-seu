@@ -1,0 +1,7 @@
+{
+  "name": "grid",
+  "note": "The literal ask: every non-moving start. theta0 over the full circle x cart offset.",
+  "seconds": 10,
+  "theta0_deg": {"start": -180, "stop": 180, "step": 2},
+  "x0_m": [-1.0, -0.5, 0.0, 0.5, 1.0]
+}

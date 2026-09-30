@@ -1,0 +1,8 @@
+{
+  "name": "rate",
+  "note": "Sim-rate sensitivity. Gains were designed at dt=0.01 (ZOH). Sweeps the control tick and plant sub-stepping.",
+  "seconds": 10,
+  "theta0_deg": {"start": 0, "stop": 60, "step": 5},
+  "dt": [0.002, 0.005, 0.01, 0.02, 0.05],
+  "substeps": [1, 4]
+}

@@ -1,0 +1,7 @@
+fsw/build
+sim/out
+research
+docs/*.md
+!docs/GLOSSARY.md
+.git
+fsw/build-xcode

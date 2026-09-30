@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORCA Cart-Pole Viewer</title>
+<style>
+:root{--bg:#080808;--panel:#0d0d10;--line:#242429;--ink:#f2f2f2;--mute:#9a9aa2;--dim:#55555c;--or:#ff6b35}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:13px ui-monospace,Menlo,Consolas,monospace}
+main{max-width:1000px;margin:0 auto;padding:12px 16px 40px}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0 12px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--or)}
+h1{font-size:14px;letter-spacing:.08em;margin:0;font-weight:600}
+#binfo{color:var(--dim);font-size:11px;margin-left:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:10px;margin-bottom:12px}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 16px}
+.ctl label{display:block;color:var(--mute);font-size:11px;margin-bottom:3px}
+.ctl .r{display:flex;gap:8px;align-items:center}
+input[type=number],select{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:4px 6px;font:inherit;width:84px}
+select{width:100%}
+input[type=range]{flex:1;min-width:0;accent-color:var(--mute)}
+button{background:var(--bg);color:var(--ink);border:1px solid var(--dim);border-radius:3px;padding:6px 14px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--ink)}
+button.go{border-color:var(--or)}
+.btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+#status{color:var(--dim);font-size:11px}
+#status.err{color:#ff3355}
+details summary{cursor:pointer;color:var(--mute);font-size:11px;margin-top:10px}
+canvas{display:block;width:100%;background:var(--panel)}
+#readout{color:var(--mute);margin-top:8px;white-space:pre-wrap;line-height:1.5;font-size:12px}
+#readout b{color:var(--ink);font-weight:400}
+.cap{color:var(--mute);font-size:11px;margin:0 0 4px}
+#legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--mute);margin-top:6px}
+#legend i{display:inline-block;width:10px;height:3px;margin-right:5px;vertical-align:middle}
+pre{background:var(--bg);border:1px solid var(--line);color:var(--mute);padding:8px;margin:10px 0 0;max-height:280px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
+#map{max-width:100%;margin-top:10px;display:none;border:1px solid var(--line)}
+#summary{color:var(--ink);margin-top:8px}
+#note{color:var(--dim);font-size:11px;margin-top:4px}
+</style>
+</head>
+<body>
+<main>
+<header><span class="dot"></span><h1>ORCA · CART-POLE · LQR BASELINE</h1><span id="binfo">…</span></header>
+
+<div class="panel">
+  <div class="controls">
+    <div class="ctl"><label>theta0 [deg]</label><div class="r"><input type="number" id="th0n" step="1" min="-180" max="180" value="12"><input type="range" id="th0s" min="-180" max="180" step="1" value="12"></div></div>
+    <div class="ctl"><label>x0 [m]</label><div class="r"><input type="number" id="x0n" step="0.05" min="-1.5" max="1.5" value="0.5"><input type="range" id="x0s" min="-1.5" max="1.5" step="0.05" value="0.5"></div></div>
+    <div class="ctl"><label>seconds</label><div class="r"><input type="number" id="secs" step="1" min="1" max="60" value="8"></div></div>
+    <div class="ctl"><label>dt [s]</label><div class="r"><input type="number" id="dt" step="0.001" min="0.001" max="0.2" value="0.01"></div></div>
+    <div class="ctl"><label>substeps</label><div class="r"><input type="number" id="sub" step="1" min="1" max="100" value="1"></div></div>
+    <div class="ctl"><label>speed <span id="spv">1.00x</span></label><div class="r"><input type="range" id="spd" min="-2" max="2" step="0.05" value="0"></div></div>
+  </div>
+  <details><summary>plant (mistune)</summary>
+    <div class="controls" style="margin-top:8px">
+      <div class="ctl"><label>cart mass [kg]</label><input type="number" id="cm" step="0.05" min="0.01" value="1.0"></div>
+      <div class="ctl"><label>pole mass [kg]</label><input type="number" id="pm" step="0.01" min="0.001" value="0.1"></div>
+      <div class="ctl"><label>half length [m]</label><input type="number" id="hl" step="0.05" min="0.01" value="0.5"></div>
+    </div></details>
+  <div class="btns"><button class="go" id="bRun">Run</button><button id="bReplay">Replay</button><button id="bStop">Stop</button><span id="status">idle</span></div>
+</div>
+
+<div class="panel">
+  <canvas id="scene"></canvas>
+  <div id="readout">no data</div>
+</div>
+
+<div class="panel">
+  <p class="cap">θ [rad] &nbsp; band ±5°</p><canvas id="cTh"></canvas>
+  <p class="cap" style="margin-top:8px">x [m]</p><canvas id="cX"></canvas>
+  <p class="cap" style="margin-top:8px">u [N] &nbsp; ±20 limit</p><canvas id="cU"></canvas>
+</div>
+
+<div class="panel">
+  <p class="cap">force terms [N]</p><canvas id="cT"></canvas>
+  <div id="legend"></div>
+</div>
+
+<div class="panel">
+  <p class="cap">back-test</p>
+  <div class="controls"><div class="ctl"><label>scenario</label><select id="scn"></select><div id="note"></div></div></div>
+  <div class="btns"><button class="go" id="bBt">Run backtest</button><span id="btStatus" style="color:var(--dim);font-size:11px"></span></div>
+  <div id="summary"></div>
+  <pre id="log">no back-test run yet</pre>
+  <img id="map" alt="basin map">
+</div>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const C = {bg:"#080808",panel:"#0d0d10",line:"#242429",ink:"#f2f2f2",mute:"#9a9aa2",dim:"#55555c",or:"#ff6b35",red:"#ff3355"};
+const TERMS = [["u_x","#9a9aa2","x·Kx"],["u_xd","#55555c","ẋ·Kẋ"],["u_th","#ff6b35","θ·Kθ"],["u_thd","#c8d4e0","θ̇·Kθ̇"],["u_i","#33ff33","∫x·Ki"]];
+const TRACK = 2.4, MONO = "ui-monospace, Menlo, Consolas, monospace";
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// ---- state
+let rows = [], src = null, simT = 0, lastTs = 0, raf = 0, streaming = false, dtRun = 0.01, secRun = 8;
+let plant = {half_len: 0.5}, uiAllZero = true;
+
+function setStatus(msg, err) { const s = $("status"); s.textContent = msg; s.className = err ? "err" : ""; }
+const speed = () => Math.pow(4, parseFloat($("spd").value) / 2 * 1) ; // -2..2 -> 0.25x..4x
+function syncSpeed() { $("spv").textContent = speed().toFixed(2) + "x"; }
+
+// ---- inputs: number <-> slider
+function link(n, s) { $(n).oninput = () => { $(s).value = $(n).value; }; $(s).oninput = () => { $(n).value = $(s).value; }; }
+link("th0n", "th0s"); link("x0n", "x0s"); $("spd").oninput = syncSpeed; syncSpeed();
+const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) ? v : d; };
+
+// ---- canvas sizing
+function fit(cv, h) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+  cv.style.height = h + "px";
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [g, w, h];
+}
+
+// ---- run / stream
+function closeSrc() { if (src) { src.close(); src = null; } streaming = false; }
+function startRun() {
+  closeSrc(); rows = []; simT = 0;
+  dtRun = Math.max(1e-4, num("dt", 0.01)); secRun = Math.max(0.1, num("secs", 8));
+  plant.half_len = Math.max(0.01, num("hl", 0.5));
+  const q = new URLSearchParams({theta0: (num("th0n", 0) * Math.PI / 180).toFixed(5), x0: num("x0n", 0), seconds: secRun,
+    dt: dtRun, substeps: num("sub", 1), cart_mass: num("cm", 1), pole_mass: num("pm", 0.1), half_len: plant.half_len});
+  src = new EventSource("/run?" + q); streaming = true; setStatus("running…");
+  src.addEventListener("row", e => { rows.push(JSON.parse(e.data)); });
+  src.addEventListener("done", e => {
+    const d = JSON.parse(e.data); closeSrc();
+    uiAllZero = rows.every(r => r.u_i === 0);
+    setStatus(d.exit === 0 ? "done · " + d.rows + " rows" : "binary exit " + d.exit, d.exit !== 0);
+  });
+  src.onerror = () => { if (streaming) { closeSrc(); setStatus("disconnected", true); } };
+  play();
+}
+function play() { cancelAnimationFrame(raf); lastTs = 0; raf = requestAnimationFrame(tick); }
+function tick(ts) {
+  if (lastTs) simT += (ts - lastTs) / 1000 * speed();
+  lastTs = ts;
+  const last = rows.length ? rows[rows.length - 1].t : 0;
+  if (simT > last) simT = last; // streamed data not there yet: hold at the frontier
+  draw();
+  if (streaming || simT < last) raf = requestAnimationFrame(tick);
+}
+function idxAt(t) { // rows are uniform in tick; binary search on t for robustness
+  let lo = 0, hi = rows.length - 1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (rows[m].t <= t + 1e-9) lo = m; else hi = m - 1; }
+  return lo;
+}
+$("bRun").onclick = startRun;
+$("bReplay").onclick = () => { if (!rows.length) return setStatus("nothing to replay", true); simT = 0; setStatus(streaming ? "running…" : "replay"); play(); };
+$("bStop").onclick = () => { closeSrc(); cancelAnimationFrame(raf); setStatus("stopped"); draw(); };
+window.addEventListener("resize", draw);
+
+// ---- drawing
+function drawScene() {
+  const w0 = $("scene").clientWidth, [g, w, h] = fit($("scene"), Math.max(150, Math.min(260, w0 * 0.32)));
+  g.fillStyle = C.panel; g.fillRect(0, 0, w, h);
+  const pad = 24, sx = (w - 2 * pad) / (2 * (TRACK + 0.3)), X = m => w / 2 + m * sx;
+  const rail = h * 0.72;
+  g.strokeStyle = C.dim; g.lineWidth = 2; g.beginPath(); g.moveTo(X(-TRACK), rail); g.lineTo(X(TRACK), rail); g.stroke();
+  g.strokeStyle = C.mute; g.lineWidth = 3;
+  for (const e of [-TRACK, TRACK]) { g.beginPath(); g.moveTo(X(e), rail - 12); g.lineTo(X(e), rail + 12); g.stroke(); }
+  const ro = $("readout");
+  if (!rows.length) { ro.textContent = "no data"; return; }
+  const r = rows[idxAt(simT)], cw = 0.3 * sx, ch = 0.16 * sx, cx = X(r.x);
+  const L = 2 * plant.half_len * sx;
+  g.fillStyle = C.line; g.strokeStyle = C.mute; g.lineWidth = 1.5;
+  g.fillRect(cx - cw / 2, rail - ch, cw, ch); g.strokeRect(cx - cw / 2, rail - ch, cw, ch);
+  const py = rail - ch, tx = cx + L * Math.sin(r.theta), ty = py - L * Math.cos(r.theta);
+  g.strokeStyle = r.fault ? C.red : C.or; g.lineWidth = 5; g.lineCap = "round";
+  g.beginPath(); g.moveTo(cx, py); g.lineTo(tx, ty); g.stroke();
+  g.fillStyle = C.ink; g.beginPath(); g.arc(cx, py, 3, 0, 7); g.fill();
+  // force arrow: 20 N -> 1.0 m
+  const al = r.u / 20 * sx; if (Math.abs(al) > 1) {
+    const y = rail + 18, d = Math.sign(al);
+    g.strokeStyle = C.mute; g.fillStyle = C.mute; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(cx, y); g.lineTo(cx + al, y); g.stroke();
+    g.beginPath(); g.moveTo(cx + al, y); g.lineTo(cx + al - d * 7, y - 4); g.lineTo(cx + al - d * 7, y + 4); g.fill();
+  }
+  const P = r.u_x + r.u_th, D = r.u_xd + r.u_thd, I = r.u_i;
+  ro.innerHTML = `tick <b>${r.tick}</b>  t <b>${r.t.toFixed(3)}</b> s  θ <b>${(r.theta * 180 / Math.PI).toFixed(2)}</b>°  x <b>${r.x.toFixed(3)}</b> m  u <b>${r.u.toFixed(2)}</b> N  fault <b>${r.fault}</b>\n` +
+    `P <b>${P.toFixed(2)}</b>  D <b>${D.toFixed(2)}</b>  I <b>${I.toFixed(2)}</b>` + (r.sat ? "  <b style='color:#ff6b35'>SAT</b>" : "");
+}
+
+// generic strip chart: series=[{key,color}], fixed symmetric range from data
+function strip(id, series, opts) {
+  const [g, w, h] = fit($(id), opts.h || 110);
+  g.fillStyle = C.panel; g.fillRect(0, 0, w, h);
+  const ml = 44, mr = 8, mt = 6, mb = 6, T = Math.max(secRun, 0.1);
+  let m = opts.min || 0;
+  for (const r of rows) for (const s of series) m = Math.max(m, Math.abs(r[s.key]));
+  m *= 1.1; if (m <= 0) m = 1;
+  const X = t => ml + t / T * (w - ml - mr), Y = v => mt + (1 - (v + m) / (2 * m)) * (h - mt - mb);
+  if (opts.band) { g.fillStyle = "rgba(154,154,162,0.10)"; g.fillRect(ml, Y(opts.band), w - ml - mr, Y(-opts.band) - Y(opts.band)); }
+  g.lineWidth = 1; g.strokeStyle = C.line; g.font = "10px " + MONO; g.fillStyle = C.dim; g.textAlign = "right";
+  for (const v of [-m / 1.1, 0, m / 1.1]) { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(w - mr, Y(v)); g.stroke(); g.fillText(v.toFixed(2), ml - 4, Y(v) + 3); }
+  if (opts.lines) { g.strokeStyle = C.dim; g.setLineDash([4, 4]); for (const v of opts.lines) { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(w - mr, Y(v)); g.stroke(); } g.setLineDash([]); }
+  if (!rows.length) return;
+  const k = idxAt(simT), step = Math.max(1, Math.floor(rows.length / (w * 2)));
+  for (const s of series) {
+    for (const pass of [0, 1]) { // 0: dim full trace, 1: bright played
+      const end = pass ? k : rows.length - 1;
+      g.strokeStyle = pass ? s.color : s.color + "55"; g.lineWidth = pass ? 1.5 : 1; g.beginPath();
+      for (let i = 0; i <= end; i += step) { const r = rows[i]; i ? g.lineTo(X(r.t), Y(r[s.key])) : g.moveTo(X(r.t), Y(r[s.key])); }
+      g.stroke();
+    }
+  }
+  g.strokeStyle = C.or; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(simT), mt); g.lineTo(X(simT), h - mb); g.stroke();
+}
+function draw() {
+  drawScene();
+  strip("cTh", [{key: "theta", color: "#f2f2f2"}], {min: 0.1, band: 5 * Math.PI / 180});
+  strip("cX", [{key: "x", color: "#f2f2f2"}], {min: 0.5});
+  strip("cU", [{key: "u", color: "#f2f2f2"}], {min: 22, lines: [20, -20]});
+  strip("cT", TERMS.map(t => ({key: t[0], color: t[1]})), {min: 1, h: 150});
+  $("legend").innerHTML = TERMS.map(t => `<span><i style="background:${t[1]}"></i>${esc(t[0])}${t[0] === "u_i" && rows.length && uiAllZero ? " = 0 (Ki off)" : ""}</span>`).join("");
+}
+
+// ---- back-test
+let scen = [];
+async function loadInit() {
+  try { const b = await (await fetch("/build_info")).json();
+    const parts = [b.host, b.envclass, b.compiler_version, b.container ? "container" : (b.host ? "metal" : "")].filter(Boolean).map(esc);
+    $("binfo").innerHTML = parts.length ? parts.join(" · ") : "no build_info"; } catch (e) { $("binfo").textContent = "no build_info"; }
+  try { scen = await (await fetch("/scenarios")).json();
+    $("scn").innerHTML = scen.map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join(""); showNote(); }
+  catch (e) { $("note").textContent = "disconnected"; }
+}
+function showNote() { const s = scen.find(x => x.name === $("scn").value); $("note").textContent = s ? s.note : ""; }
+$("scn").onchange = showNote;
+let bt = null;
+$("bBt").onclick = () => {
+  if (bt) bt.close();
+  const name = $("scn").value; if (!name) return;
+  const log = $("log"); log.textContent = ""; $("summary").textContent = ""; $("map").style.display = "none";
+  $("btStatus").textContent = "running…";
+  bt = new EventSource("/backtest?scenario=" + encodeURIComponent(name)); let finished = false;
+  bt.addEventListener("line", e => {
+    const line = JSON.parse(e.data); log.appendChild(document.createTextNode(line + "\n")); log.scrollTop = log.scrollHeight;
+    const m = /success\s+(\d+)\/(\d+)\s*=\s*([\d.]+)%/.exec(line);
+    if (m) $("summary").textContent = `${name}: ${m[1]} of ${m[2]} runs succeeded (${m[3]}%)`;
+  });
+  bt.addEventListener("done", e => {
+    finished = true; bt.close(); bt = null; const d = JSON.parse(e.data);
+    $("btStatus").textContent = d.exit === 0 ? "done" : "exit " + d.exit;
+    const img = $("map"); img.onload = () => { img.style.display = "block"; }; img.onerror = () => { img.style.display = "none"; };
+    img.src = "/map/" + encodeURIComponent(name) + ".png?t=" + Date.now();
+  });
+  bt.onerror = () => { if (!finished) { if (bt) bt.close(); bt = null; $("btStatus").textContent = "disconnected"; } };
+};
+
+loadInit(); draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "basin",
+  "note": "Fine theta sweep at x0=0, nominal plant. Finds the basin edge of the balance controller.",
+  "seconds": 10,
+  "theta0_deg": {"start": 0, "stop": 180, "step": 1}
+}

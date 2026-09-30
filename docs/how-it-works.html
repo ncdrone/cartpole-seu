@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cart-Pole Soft-Fault System</title>
+<style>
+/* Single file, no external resources: works offline on a Pi. NOIR look, system fonts. */
+:root{--bg:#080808;--panel:#0d0d10;--line:#242429;--ink:#f2f2f2;--mute:#9a9aa2;--dim:#55555c;--orange:#ff6b35;--tint:rgba(255,107,53,.12);--green:#33ff33;--red:#ff3355;--slate:#4a5568;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,"Helvetica Neue",Helvetica,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:48px 20px 90px}
+.mono,code,td.m,th,.eyebrow,.cap{font-family:ui-monospace,Menlo,"JetBrains Mono",Consolas,monospace}
+.eyebrow{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.eyebrow::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--orange)}
+h1{font-size:clamp(38px,6.5vw,66px);font-weight:800;letter-spacing:-.03em;line-height:1;margin:20px 0 12px}
+.sub{font-size:19px;color:var(--dim);max-width:52ch;margin:0 0 28px}
+.rule{position:relative;height:1px;background:var(--line);margin:0 0 44px}.rule::before{content:"";position:absolute;left:0;top:0;height:1px;width:72px;background:var(--orange)}
+h2{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 16px}
+h3{font-size:17px;font-weight:600;margin:22px 0 8px}
+p{max-width:72ch;margin:0 0 14px}
+section{margin:0 0 64px}
+.sec{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 10px;font-family:ui-monospace,Menlo,monospace}
+code{font-size:.9em;background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:1px 5px}
+pre{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.5;background:var(--panel);border:1px solid var(--line);padding:14px 16px;overflow-x:auto;color:var(--mute);margin:0 0 14px}
+figure{margin:0}figcaption{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--dim);margin-top:10px;line-height:1.7}
+svg{max-width:100%;height:auto;display:block;color:var(--ink)}
+.tbl{overflow-x:auto;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;padding:11px 10px 9px;border-bottom:1px solid var(--line);font-weight:500;white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--mute)}
+td.m{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+td:first-child{white-space:nowrap}
+td.w{color:var(--ink)}
+td.w:not(.m){min-width:24ch}
+.tag{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--line);border-radius:2px;white-space:nowrap}
+.tag.bad{color:var(--red);border-color:var(--red)}.tag.ok{color:var(--green);border-color:var(--green)}.tag.fix{color:var(--orange);border-color:var(--orange);background:var(--tint)}.tag.stop{color:var(--ink);border-color:var(--mute)}.tag.dim{color:var(--dim)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:26px}
+ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var(--ink);font-weight:600}
+.ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.step{background:var(--panel);border:1px solid var(--line);padding:16px 16px 14px;min-width:0}
+.step .k{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.step h3{margin:0 0 8px;font-size:16px}.step p{font-size:14px;color:var(--mute);margin:0}
+.step.hot{border-color:var(--orange)}.step.hot .k{color:var(--orange)}
+.note{font-size:14px;color:var(--mute);border-left:2px solid var(--orange);padding-left:12px;max-width:72ch}
+@media (max-width:520px){.wrap{padding:32px 16px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Orca assignment · how the system works · 2026-09-29</div>
+  <h1>Cart-Pole Soft-Fault System</h1>
+  <p class="sub">What one control tick does, what a flipped bit does to it, and where each flip is corrected, caught, or stopped. Every number below was produced by the code in this repo.</p>
+  <div class="rule"></div>
+
+  <section>
+    <div class="sec">1 · the loop</div>
+    <h2>One control tick, with the protection layers in place</h2>
+    <figure>
+    <svg viewBox="0 0 1000 400" role="img" aria-label="One control tick: encoded parameter store decoded with SECDED then CRC-32C, range table, the pure control step with swing-up and LQR, dual execution compare, output guard with constant clamp, FDIR state machine, then the actuator; a golden reload loop on any detection; the plant and sensors feed back with a plausibility guard">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+      <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker></defs>
+      <g fill="none" stroke="currentColor" stroke-width="1" font-family="ui-monospace,Menlo,monospace" font-size="11">
+        <!-- row 1 -->
+        <rect x="20" y="50" width="150" height="86" rx="2" stroke="#ff6b35"/>
+        <text x="95" y="70" text-anchor="middle" fill="#ff6b35" stroke="none">1 · store</text>
+        <text x="95" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">9 × F32 words</text>
+        <text x="95" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">+7 check bits / word</text>
+        <text x="95" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">+ CRC-32C over 36 B</text>
+        <text x="95" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">volatile RAM</text>
+
+        <line x1="170" y1="93" x2="205" y2="93" marker-end="url(#a)"/>
+        <rect x="205" y="50" width="120" height="86" rx="2"/>
+        <text x="265" y="70" text-anchor="middle" fill="currentColor" stroke="none">2 · decode</text>
+        <text x="265" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">SECDED per word</text>
+        <text x="265" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">1 bit: fix + scrub</text>
+        <text x="265" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">2 bits: DED</text>
+        <text x="265" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">then CRC-32C</text>
+
+        <line x1="325" y1="93" x2="360" y2="93" marker-end="url(#a)"/>
+        <rect x="360" y="50" width="120" height="86" rx="2"/>
+        <text x="420" y="70" text-anchor="middle" fill="currentColor" stroke="none">3 · range table</text>
+        <text x="420" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">sign + band / field</text>
+        <text x="420" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">k2 ∈ [−95, −23]</text>
+        <text x="420" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">flim = 20 exactly</text>
+        <text x="420" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">independent of ECC</text>
+
+        <line x1="480" y1="93" x2="515" y2="93" marker-end="url(#a)"/>
+        <rect x="515" y="50" width="140" height="86" rx="2"/>
+        <text x="585" y="70" text-anchor="middle" fill="currentColor" stroke="none">4 · step()</text>
+        <text x="585" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">pure, no statics</text>
+        <text x="585" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">u = −K·[x, ẋ, θ, θ̇]</text>
+        <text x="585" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">run twice on copies</text>
+        <text x="585" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">compare u₁ = u₂</text>
+
+        <line x1="655" y1="93" x2="690" y2="93" marker-end="url(#a)"/>
+        <rect x="690" y="50" width="130" height="86" rx="2"/>
+        <text x="755" y="70" text-anchor="middle" fill="currentColor" stroke="none">5 · output guard</text>
+        <text x="755" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">isfinite(u)</text>
+        <text x="755" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">|u| ≤ 20 N const</text>
+        <text x="755" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">|Δu| ≤ rate limit</text>
+        <text x="755" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">not from Params</text>
+
+        <line x1="820" y1="93" x2="855" y2="93" marker-end="url(#a)"/>
+        <rect x="855" y="50" width="125" height="86" rx="2" stroke="#ff6b35"/>
+        <text x="917" y="70" text-anchor="middle" fill="#ff6b35" stroke="none">6 · FDIR</text>
+        <text x="917" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">NOMINAL</text>
+        <text x="917" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">RECOVERING</text>
+        <text x="917" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">DEGRADED</text>
+        <text x="917" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">SAFE (latched)</text>
+
+        <!-- detections up to FDIR -->
+        <path d="M265,50 L265,30 L917,30 L917,50" stroke="#ff6b35" stroke-dasharray="4 3" marker-end="url(#ao)"/>
+        <path d="M420,50 L420,30" stroke="#ff6b35" stroke-dasharray="4 3"/>
+        <path d="M585,50 L585,30" stroke="#ff6b35" stroke-dasharray="4 3"/>
+        <path d="M755,50 L755,30" stroke="#ff6b35" stroke-dasharray="4 3"/>
+        <text x="590" y="22" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">every detection reports here: DED · CRC fail · out of range · u₁ ≠ u₂ · non-finite</text>
+
+        <!-- reload loop -->
+        <rect x="20" y="180" width="150" height="60" rx="2"/>
+        <text x="95" y="200" text-anchor="middle" fill="currentColor" stroke="none">golden</text>
+        <text x="95" y="216" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">params_default() literals</text>
+        <text x="95" y="230" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">CRC verified before use</text>
+        <path d="M917,136 L917,210 L170,210" stroke="#ff6b35" marker-end="url(#ao)"/>
+        <text x="540" y="204" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">on any detection: reload golden → re-encode store → reseed filter → RECOVERING</text>
+        <line x1="95" y1="180" x2="95" y2="136" stroke="#ff6b35" marker-end="url(#ao)"/>
+
+        <!-- actuator / plant / sensors -->
+        <path d="M917,136 L917,290 L840,290" marker-end="url(#a)"/>
+        <text x="935" y="250" fill="currentColor" stroke="none" font-size="10" opacity=".75" transform="rotate(90 935 250)">cmd + seq</text>
+        <rect x="700" y="265" width="140" height="50" rx="2"/>
+        <text x="770" y="285" text-anchor="middle" fill="currentColor" stroke="none">actuator monitor</text>
+        <text x="770" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">stale &gt; N ticks → fallback</text>
+        <line x1="700" y1="290" x2="600" y2="290" marker-end="url(#a)"/>
+        <rect x="490" y="265" width="110" height="50" rx="2"/>
+        <text x="545" y="285" text-anchor="middle" fill="currentColor" stroke="none">plant</text>
+        <text x="545" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">cart-pole, RK4</text>
+        <line x1="490" y1="290" x2="400" y2="290" marker-end="url(#a)"/>
+        <rect x="270" y="265" width="130" height="50" rx="2"/>
+        <text x="335" y="285" text-anchor="middle" fill="currentColor" stroke="none">plausibility</text>
+        <text x="335" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">|Δθ − θ̇·dt| ≤ tol</text>
+        <path d="M270,290 L200,290 L200,150 L585,150 L585,136" marker-end="url(#a)"/>
+        <text x="392" y="164" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">Input for the next tick</text>
+
+        <!-- legend -->
+        <text x="20" y="360" fill="currentColor" stroke="none" font-size="10" opacity=".75">Solid arrows: data every tick.  Dashed orange: detection reports.  Orange boxes: the two places recovery decisions live.</text>
+        <text x="20" y="378" fill="currentColor" stroke="none" font-size="10" opacity=".75">Stages 2, 3 and 5 are independent detectors: a fault that slips one is caught by the next. The triple-bit case in §3 shows why that matters.</text>
+      </g>
+    </svg>
+    <figcaption>Stages 1–6 run inside the flight core once per 10 ms tick. The store is decoded into local copies every tick, so a flip in RAM is seen the next time it is read. The plausibility guard belongs to the flight core (it runs on every SensorFrame); the plant and actuator monitor are sim-side today and F´ components later.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec">2 · what a flip does today · baseline binary, no protection · measured</div>
+    <h2>Real bit flips through the unprotected controller</h2>
+    <p>Each row is one run of <code>fsw/build/cartpole_demo</code> from θ₀ = 0.05 rad, upright and settling, with one bit of <code>Params</code> XOR-flipped at tick 100 (t = 1.0 s). The fault stays in memory, as a real SEU would until something rewrites the word.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Flip</th><th>Word</th><th>Value</th><th>Next-tick force</th><th>What happened</th><th>Fault flag</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td class="m">none</td><td class="m">–</td><td class="m">–</td><td class="m">−0.16 N</td><td>Settles and holds.</td><td class="m">0</td><td><span class="tag ok">OK</span></td></tr>
+        <tr><td class="m">flim bit 31 (sign)</td><td class="m">0x41A00000 → 0xC1A00000</td><td class="m">20 → −20</td><td class="m w">−20.00 N</td><td class="w">The clamp now returns −20 for any u above −20: full-force positive feedback. Pole past horizontal at 1.33 s, off the rail at 1.53 s, cart ends 57 m away.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">flim bit 30 (exponent)</td><td class="m">0x41A00000 → 0x01A00000</td><td class="m">20 → 5.9e−38</td><td class="m w">−0.00 N</td><td class="w">Clamp limit is now ~0, so every command is ~0 N. The pole falls at 2.51 s with the cart sitting still.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">flim bit 29</td><td class="m">0x41A00000 → 0x61A00000</td><td class="m">20 → 3.7e20</td><td class="m">−0.16 N</td><td>Clamp is effectively disabled. Nothing happens this run because the loop never asks for more than 2.4 N, but the safety limit is gone.</td><td class="m">0</td><td><span class="tag dim">latent</span></td></tr>
+        <tr><td class="m">k2 bit 31 (sign)</td><td class="m">0xC23D7EB3 → 0x423D7EB3</td><td class="m">−47.37 → +47.37</td><td class="m w">+0.98 N</td><td class="w">Pole gain flips sign: the controller pushes the pole over. Fell at 2.10 s, off the rail at 2.54 s.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">k2 bit 30 (exponent)</td><td class="m">0xC23D7EB3 → 0x823D7EB3</td><td class="m">−47.37 → −1.4e−37</td><td class="m w">+0.41 N</td><td class="w">Pole feedback is gone; only the cart terms remain. The pole drifts and falls at 5.16 s. Finite, so <code>isfinite</code> sees nothing.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">k2 bit 0 (mantissa LSB)</td><td class="m">0xC23D7EB3 → 0xC23D7EB2</td><td class="m">−47.3737 → −47.3737</td><td class="m">−0.16 N</td><td>Gain changed by one part in 10⁷. Feedback absorbs it completely.</td><td class="m">0</td><td><span class="tag ok">masked</span></td></tr>
+        <tr><td class="m">k0 bit 30 (exponent)</td><td class="m">0xC03D9F56 → 0x803D9F56</td><td class="m">−2.96 → −5.7e−39</td><td class="m">−0.42 N</td><td>Cart-position gain is gone. The pole stays up and the cart is no longer regulated; at 6 s it sits at 7 cm and will drift. A θ-only success check would call this a pass.</td><td class="m">0</td><td><span class="tag dim">SDC · slow</span></td></tr>
+        <tr><td class="m">alpha bit 30</td><td class="m">0x3F800000 → 0x7F800000</td><td class="m">1.0 → +Inf</td><td class="m w">0.00 N</td><td class="w">The only flip <code>isfinite</code> catches. The fault path outputs the "safe" force of 0 N every tick from then on, so the pole falls at 2.51 s anyway.</td><td class="m w">1 at 1.00 s</td><td><span class="tag bad">DUE · fell</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" style="margin-top:14px">These rows were measured on the first baseline, when the force limit and safe force still lived inside <code>Params</code>; they have since moved to compile-time constants, which is why the protected build cannot be given the first three flips at all. Of 256 possible single-bit flips in that <code>Params</code>, exactly one produced a non-finite value. The rest are finite and wrong, and the dangerous ones are all sign or exponent bits. Detection has to look at <em>meaning</em> (range) and <em>integrity</em> (codes), not at NaN.</p>
+  </section>
+
+  <section>
+    <div class="sec">3 · the same flips through the protected pipeline · computed</div>
+    <h2>Where each flip is corrected, caught, or stopped</h2>
+    <p class="note">Now measured, not only computed: <code>sim/campaign.py</code> pushes every bit of every word through both builds. Unprotected: 42 of 640 single flips are silent corruption. Protected: 640 of 640 corrected, 60 of 60 double flips detected and recovered by golden reload, every check-bit and CRC-word flip handled, 13 compute-window flips caught by dual execution, every stall recovered. Full table in the README.</p>
+    <p>Same words, now stored with 7 SECDED check bits per word and a CRC-32C over the 36-byte blob (golden CRC <code>0xBFAA04E8</code>). Syndromes and CRCs below are computed by the reference codec, which was checked exhaustively: all 32 single-bit flips of a word correct back to the original, all 496 double-bit flips report DED.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Flip</th><th>Check bits</th><th>Syndrome</th><th>SECDED says</th><th>Value after SECDED</th><th>CRC-32C</th><th>Range table</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td class="m">flim bit 31</td><td class="m">0x7D</td><td class="m">38</td><td><span class="tag fix">SEC</span></td><td class="m">20.0 (restored)</td><td class="m">would pass after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> Word rewritten (scrubbed), correction counter +1, no change to the command.</td></tr>
+        <tr><td class="m">flim bit 30</td><td class="m">0x7D</td><td class="m">37</td><td><span class="tag fix">SEC</span></td><td class="m">20.0 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b></td></tr>
+        <tr><td class="m">k2 bit 30</td><td class="m">0x46</td><td class="m">37</td><td><span class="tag fix">SEC</span></td><td class="m">−47.37 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> The flip that fell the pole at 5.16 s in §2 is now invisible to the plant.</td></tr>
+        <tr><td class="m">k2 bit 0</td><td class="m">0x46</td><td class="m">3</td><td><span class="tag fix">SEC</span></td><td class="m">−47.3737 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> Even a harmless flip is corrected and counted; the count is telemetry for FDIR trends.</td></tr>
+        <tr><td class="m">alpha bit 30</td><td class="m">0x58</td><td class="m">37</td><td><span class="tag fix">SEC</span></td><td class="m">1.0 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> The Inf never reaches <code>step()</code>, so the fault path that dropped the pole is never taken.</td></tr>
+        <tr><td class="m">k2 bits 30+31</td><td class="m">0x46</td><td class="m">3</td><td><span class="tag stop">DED</span></td><td class="m">+1.4e−37 (untrusted)</td><td class="m">0x4EE82E74 ≠ golden</td><td class="m">out of band</td><td class="w"><b>Detect and reload.</b> SECDED refuses to guess. Golden <code>Params</code> reloaded and re-encoded, filter reseeded, state → RECOVERING. Command this tick comes from the reloaded gains.</td></tr>
+        <tr><td class="m">flim bits 3+17</td><td class="m">0x7D</td><td class="m">16</td><td><span class="tag stop">DED</span></td><td class="m">20.25 (untrusted)</td><td class="m">0x261DA0F1 ≠ golden</td><td class="m">≠ 20 exactly</td><td class="w"><b>Detect and reload.</b> Note the value looks nearly right. The system does not care; a DED word is never used.</td></tr>
+        <tr><td class="m">k2 bits 4+12+25</td><td class="m">0x46</td><td class="m">4</td><td><span class="tag bad">SEC (wrong)</span></td><td class="m w">−2.96 (miscorrected)</td><td class="m w">0x1794FDCD ≠ golden</td><td class="m w">out of band</td><td class="w"><b>Detect and reload, by the second and third layers.</b> Three flips alias to a single-bit syndrome, so SECDED "corrects" the gain to −2.96 and reports success. The CRC over the corrected blob fails, and the range table rejects −2.96 for k2 independently. This is why the order is decode → CRC → range, and why CRC is not optional.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" style="margin-top:14px">Miscorrection is not rare: over all 9,139 triple-bit patterns in a 39-bit word, extended Hamming miscorrects 69% and Hsiao 60%. Multi-bit upsets are more than 5% of space memory errors. The CRC exists for exactly this case.</p>
+  </section>
+
+  <section>
+    <div class="sec">4 · detect and correct vs detect and stop</div>
+    <h2>The response ladder</h2>
+    <p>Correction is only allowed when the code can prove which bit flipped. Everything else is treated as untrusted and replaced from a verified source. The plant sets the clock: at zero force the pole is unrecoverable after 0.3–1.3 s depending on angle, so every response below completes inside one 10 ms tick and the whole ladder must resolve within about 300 ms.</p>
+    <div class="ladder">
+      <div class="step"><div class="k">single-bit · SEC</div><h3>Correct, scrub, count</h3><p>Syndrome names the bit. Fix it in the local copy, write the corrected word back to the store, increment the correction counter. No command change, no state change. Telemetry only.</p></div>
+      <div class="step hot"><div class="k">DED · CRC fail · out of range · u₁≠u₂</div><h3>Reload golden, RECOVERING</h3><p>Do not use the word. Rebuild <code>Params</code> from the compile-time literals, verify its CRC, re-encode the store, reseed the θ̇ filter from the current measurement (bumpless). Command this tick uses the reloaded gains. Exit to NOMINAL after M clean ticks.</p></div>
+      <div class="step"><div class="k">repeat within window</div><h3>DEGRADED</h3><p>K detections in W ticks means a stuck bit, a corrupted golden, or a bug. Drop to the simplest law (pure LQR, integrator off, tighter clamp). Exit to NOMINAL only after several clean windows (hysteresis).</p></div>
+      <div class="step"><div class="k">still failing · or |θ| beyond limit</div><h3>SAFE, latched</h3><p>Force = 0, constant. Loop declared lost. Only an explicit command clears it. For this plant SAFE means the pole is down and the actuator is benign; there is no static command that keeps it up, so the ladder above is what "safe" really means.</p></div>
+    </div>
+    <h3>Two things the ladder never does</h3>
+    <ul>
+      <li><b>It never "resets the integrator" as a recovery.</b> With LQR the integrator is off; with PID a reset injects a permanent cart velocity of g·I and a derivative kick of up to 43 N. Persistent parameters are what get reloaded; dynamic state is reseeded from measurements.</li>
+      <li><b>It never holds the last command as a fallback.</b> Hold-last is strictly worse than zero force at every angle for an inverted pendulum (survivable outage 330 ms vs 500 ms at 5°).</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec">5 · coverage</div>
+    <h2>Which layer catches what</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Fault</th><th>Example</th><th>SECDED</th><th>CRC-32C</th><th>Range table</th><th>Dual exec</th><th>Output guard</th><th>Plausibility</th><th>Actuator monitor</th></tr></thead>
+      <tbody>
+        <tr><td class="w">1 bit in a stored parameter</td><td class="m">k2 bit 30</td><td><span class="tag fix">corrects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">2 bits in one word</td><td class="m">k2 bits 30+31</td><td><span class="tag stop">detects</span></td><td><span class="tag stop">detects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">3+ bits in one word</td><td class="m">k2 bits 4+12+25</td><td><span class="tag bad">miscorrects</span></td><td><span class="tag stop">detects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">flip in the check bits or CRC word</td><td class="m">–</td><td><span class="tag fix">corrects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">flip in a register mid-computation</td><td class="m">local copy of k2 inside step()</td><td class="m dim">blind</td><td class="m dim">blind</td><td class="m dim">blind</td><td><span class="tag stop">detects</span></td><td class="m dim">partial</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">non-finite or oversized command</td><td class="m">u = NaN, u = 1e20</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">flip in a sensor sample</td><td class="m">Input.theta bit 30</td><td class="m dim">blind</td><td class="m dim">blind</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">partial</td><td><span class="tag stop">detects</span></td><td class="m dim">–</td></tr>
+        <tr><td class="w">hung or late control task</td><td class="m">skip k ticks</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td><span class="tag stop">detects</span></td></tr>
+        <tr><td class="w">flip in the FDIR state word</td><td class="m">mode bit</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">stored as (v, ~v) with HD-16 codes; default → SAFE</td></tr>
+        <tr><td class="w">flip in code (.text), OS, bus</td><td class="m">–</td><td colspan="7" class="dim">out of scope for this package: hardware EDAC, image CRC at boot, bus CRCs, F´ Health. Documented, not built.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="sec">6 · try it</div>
+    <h2>Reproduce the §2 rows</h2>
+<pre>bash scripts/build_demo.sh                                   # build + verify
+fsw/build/cartpole_demo --theta0 0.05 --seconds 6 --flip flim:31 --flip-tick 100 > flip.csv
+python3 sim/render.py --csv flip.csv                        # watch the pole go over at 1.3 s
+fsw/build/cartpole_demo --theta0 0.05 --seconds 6 --flip k2:30 --flip-tick 100 | python3 sim/render.py --csv /dev/stdin</pre>
+    <p>Fields: <code>k0 k1 k2 k3 ki ilim alpha flim safe</code>, bits 0–31, IEEE-754 binary32 layout (bit 31 sign, 30–23 exponent, 22–0 mantissa). The injector lives in the sim-side <code>main.cpp</code>; the flight core has no knowledge of it. Built: on-board Riccati solve, θ wrap, energy swing-up, the encoded store with SECDED and CRC-32C, the range table, dual execution, the output guard from constants, and the 3-state FDIR with verified golden reload. §3 is now runnable: <code>fsw/build/cartpole_demo --flip k2:30+31 --flip-tick 100</code>. §3 becomes runnable once the store, decode and range stages land in the flight core (rows 1, 4 and 5).</p>
+  </section>
+
+  <div style="border-top:1px solid var(--line);padding-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim)">Sources of the numbers: fsw/build/cartpole_demo --flip (§2); reference SECDED/CRC-32C codec in the session scratchpad, exhaustively checked (§3); research/01 survivable-outage table and research/02 miscorrection census (§4, §5).</div>
+</div>
+</body>
+</html>

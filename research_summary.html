@@ -1,0 +1,624 @@
+<title>Cart-Pole Fault Audit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: single editorial column, mono eyebrows, hairline sections. NOIR ident: dark by choice; orange reserved for Critical + brand. */
+:root{
+  --bg:#080808; --panel:#0d0d10; --line:#242429; --ink:#f2f2f2; --mute:#9a9aa2; --dim:#55555c;
+  --orange:#ff6b35; --orange-tint:rgba(255,107,53,.12); --orange-cell:#170d08; --fade:#3a3a42;
+  --display:'Inter',Helvetica,Arial,sans-serif; --mono:'JetBrains Mono',Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--display);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding-inline:20px;padding-block:56px 96px}
+a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--dim);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--orange)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+.eyebrow{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.eyebrow::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--orange);flex:none}
+h1{font-size:clamp(40px,7vw,72px);font-weight:800;letter-spacing:-.03em;line-height:1;margin:22px 0 14px;text-wrap:balance}
+.sub{font-size:clamp(17px,2.2vw,21px);color:var(--dim);max-width:44ch;margin:0 0 30px;text-wrap:balance}
+.rule{position:relative;height:1px;background:var(--line);margin:0 0 40px}
+.rule::before{content:"";position:absolute;left:0;top:0;height:1px;width:72px;background:var(--orange)}
+h2{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 18px;text-wrap:balance}
+h3{font-size:17px;font-weight:600;margin:0 0 8px;letter-spacing:-.01em}
+p{margin:0 0 14px;max-width:70ch}
+section{margin:0 0 64px}
+.sec-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+.verdict{font-size:19px;line-height:1.5;max-width:64ch;color:var(--ink)}
+.verdict strong{color:var(--orange);font-weight:600}
+
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:34px 0 0}
+.stat{padding:18px 16px 16px;border-right:1px solid var(--line);min-width:0}
+.stat:last-child{border-right:0}
+.stat .n{font-family:var(--mono);font-size:34px;font-weight:600;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.stat .l{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:8px}
+.stat.win .n{color:var(--orange)}
+.stat.fade .n{color:var(--mute)}
+.stat.dim .n{color:var(--dim)}
+
+/* severity chips */
+.chip{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--line);border-radius:2px;color:var(--mute);white-space:nowrap;vertical-align:middle}
+.chip.c{color:var(--orange);border-color:var(--orange);background:var(--orange-tint)}
+.chip.h{color:var(--ink);border-color:var(--mute)}
+.chip.m{color:var(--mute)}
+.chip.l{color:var(--dim)}
+.src{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.06em}
+
+/* basin bar */
+.basin{margin:26px 0 0;max-width:640px}
+.basin .track{position:relative;height:14px;background:var(--fade);border-radius:2px;overflow:hidden}
+.basin .fill{position:absolute;left:0;top:0;bottom:0;width:24.4%;background:var(--orange)}
+.basin .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px;letter-spacing:.06em}
+.basin .cap{font-family:var(--mono);font-size:12px;color:var(--mute);margin-top:8px}
+.basin .cap b{color:var(--orange);font-weight:600}
+
+/* themes list */
+.themes{display:grid;gap:0;border-top:1px solid var(--line)}
+.theme{display:grid;grid-template-columns:52px 1fr;gap:16px;padding:20px 0;border-bottom:1px solid var(--line)}
+.theme .idx{font-family:var(--mono);font-size:13px;color:var(--dim);padding-top:3px}
+.theme .body{min-width:0}
+.theme .body p{margin:6px 0 0;color:var(--mute);font-size:15px}
+.theme .hit{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.theme.crit .idx{color:var(--orange)}
+
+/* report cards */
+.reports{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);padding:20px 20px 18px;min-width:0}
+.card .k{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px;display:flex;justify-content:space-between;gap:10px}
+.card .k span:last-child{color:var(--mute);font-variant-numeric:tabular-nums}
+.card h3{margin-bottom:10px}
+.card ul{margin:0;padding-left:18px;color:var(--mute);font-size:14.5px}
+.card li{margin:0 0 7px}
+.card li b{color:var(--ink);font-weight:600}
+.card .file{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:12px;word-break:break-all}
+
+/* fix order table */
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+.tblwrap{overflow-x:auto;border-top:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:left;padding:12px 10px 10px;border-bottom:1px solid var(--line);font-weight:500}
+td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--mute)}
+td:first-child{font-family:var(--mono);color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.what{color:var(--ink)}
+td.hrs{font-family:var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+tr.now td.what{color:var(--ink)}
+tr.now td:first-child{color:var(--orange)}
+
+/* two-col lists */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px}
+.cols ul{margin:0;padding-left:18px;color:var(--mute);font-size:15px}
+.cols li{margin:0 0 9px}
+.cols li b{color:var(--ink);font-weight:600}
+
+/* baseline status */
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.status div{border:1px solid var(--line);padding:14px 16px;min-width:0}
+.status .k{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.status .v{font-family:var(--mono);font-size:14px;color:var(--ink);margin-top:6px;word-break:break-word;font-variant-numeric:tabular-nums}
+code{font-family:var(--mono);font-size:.92em;color:var(--ink);background:var(--panel);padding:1px 5px;border:1px solid var(--line);border-radius:2px}
+figure{margin:0}
+figure svg{color:var(--ink)}
+pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--panel);border:1px solid var(--line);padding:16px;overflow-x:auto;color:var(--mute);margin:0 0 14px}
+.foot{margin-top:70px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:18px}
+.foot .wm{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em;margin-left:auto}
+@media (max-width:520px){.theme{grid-template-columns:36px 1fr;gap:10px}.stat{padding:14px 12px}.stat .n{font-size:26px}}
+@media (prefers-reduced-motion:no-preference){a{transition:text-decoration-color .15s}}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Orca assignment · research synthesis · 2026-09-29</div>
+  <h1>Cart-Pole Fault Audit</h1>
+  <p class="sub">Five independent adversarial reviews of SPEC-01, SPEC-02 and the LQR baseline. What breaks, how badly, and the order to fix it.</p>
+  <div class="rule"></div>
+
+  <section>
+    <p class="verdict">The soft-fault <em>method</em> (inject, classify, harden, re-measure, with a negative control) is the strongest part of the plan and most submissions will not have it. But the plan misses the first requirement twice: <strong>it cannot swing up from hanging-down</strong>, and the "optimization-based" answer is four constants from a Python script. On the protection side, <strong>the headline recovery does nothing</strong> in the shipped code, the force clamp is configured by the data it is meant to defend, and <strong>the campaign is built so it cannot fail</strong>. Every one of these is fixable inside the assignment budget, and the fixes make the story stronger than the one in the spec.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="n">5</div><div class="l">reviews</div></div>
+      <div class="stat"><div class="n">70</div><div class="l">findings</div></div>
+      <div class="stat win"><div class="n">10</div><div class="l">critical</div></div>
+      <div class="stat"><div class="n">23</div><div class="l">high</div></div>
+      <div class="stat fade"><div class="n">30</div><div class="l">medium</div></div>
+      <div class="stat dim"><div class="n">7</div><div class="l">low</div></div>
+    </div>
+
+    <div class="basin">
+      <div class="track"><div class="fill"></div></div>
+      <div class="ticks"><span>0°</span><span>44°</span><span>90°</span><span>180° (hanging down)</span></div>
+      <div class="cap">Share of "any non-moving start" the shipped LQR can catch: <b>|θ₀| ≤ 44°</b> at 20 N, ±2.4 m track. Simulated in report 01.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">Cross-cutting themes · hit independently by two or more reviewers</div>
+    <h2>Where the reviews agree</h2>
+    <div class="themes">
+
+      <div class="theme crit"><div class="idx">01</div><div class="body">
+        <h3>"Any non-moving start" is not met. Swing-up is required.</h3>
+        <p>θ=π is a non-moving start and a stable equilibrium. No controller linearized about upright leaves it. Basin at 20 N / ±2.4 m is 44°; at 10 N, 35°; even unlimited force fails past 64°. Energy-shaping swing-up (Åström–Furuta) plus the existing LQR catch handles π in 2–3 s, but needs a deterministic kick at exactly π and hysteresis on the switch. The hardest start is near 85°, not π.</p>
+        <div class="hit"><span class="chip c">Critical</span><span class="src">01 · 04 · 05</span></div>
+      </div></div>
+
+      <div class="theme crit"><div class="idx">02</div><div class="body">
+        <h3>The headline recovery is a no-op, and harmful in the PID variant.</h3>
+        <p>Shipped defaults are <code>KI_X = 0</code> and <code>DFILT_ALPHA = 1</code>, so "reset integrator and derivative memory" changes nothing observable. In a PID variant it is worse: an integrator reset leaves a permanent cart velocity of g·I_old (0.36–0.43 m/s, drives off-track) and zeroing derivative memory produces a 10–43 N kick against a 20 N clamp. Recovery must be a verified golden <code>Params</code> reload plus a bumpless filter reseed. LQR is nearly memoryless; persistent parameters are what ECC protects. That is a stronger radiation story, and it is true.</p>
+        <div class="hit"><span class="chip c">Critical</span><span class="src">01 · 02 · 03 · 04 · 05</span></div>
+      </div></div>
+
+      <div class="theme crit"><div class="idx">03</div><div class="body">
+        <h3>The last line of defense lives in the data it defends.</h3>
+        <p><code>force_limit</code> and <code>safe_force</code> sit inside corruptible <code>Params</code>, and the fault branch emits <code>safe_force</code> unclamped. Flip the sign bit of <code>force_limit</code> and you get full-force positive feedback with no fault flag. Across all 256 single-bit flips of <code>Params</code>, exactly one produces a NaN/Inf; <code>isfinite</code> misses the rest. Every failing flip is a sign or exponent bit. Fix: clamp and fallback from compile-time constants applied after <code>step()</code>, plus a per-field range table independent of ECC.</p>
+        <div class="hit"><span class="chip c">Critical</span><span class="src">01 · 02 · 04</span></div>
+      </div></div>
+
+      <div class="theme crit"><div class="idx">04</div><div class="body">
+        <h3>The campaign cannot fail. Verification is mislabelled as assessment.</h3>
+        <p>Injecting into the encoded blob at rest, right before the check, only tests the codec. "Hardened shows fewer SDC than baseline" is true by construction. Faults inside the tick (locals, <code>Input</code>, the working copy) get written back and re-encoded as valid. Split into a Verification campaign (exhaustive, pass/fail, gates CI) and an Assessment campaign (all controller-owned state, same fault list per mode, N≈3,000 per mode for ±1 pt, Wilson intervals, never gated). Fixed 10 s runs hid 17% of real failures in the toy; use a fixed post-injection window against a fault-free twin.</p>
+        <div class="hit"><span class="chip c">Critical</span><span class="src">02 · 03 · 05</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">05</div><div class="body">
+        <h3>"Optimization-based" is currently four constants.</h3>
+        <p>K comes from an offline scipy DARE solve; the binary performs no optimization. Solving the discrete Riccati equation in C++ at init is ~40 lines of 4×4 math with a scalar inverse and makes the claim literally true, gives a recompute-from-golden recovery path, and turns Q/R into the tuning story. Unconstrained "thin MPC" with a DARE terminal cost reproduces LQR exactly and a controls reviewer will know it. Receding-horizon iLQR or input-constrained MPC is the stretch, and its warm start becomes new SEU-sensitive state.</p>
+        <div class="hit"><span class="chip h">High</span><span class="src">01 · 05</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">06</div><div class="body">
+        <h3>Zero force is not a safe state for an inverted pendulum.</h3>
+        <p>Open-loop pole at 3.97 rad/s: tilt e-folds every 0.25 s. Survivable outage at zero force is 0.5–1.3 s depending on angle; hold-last is strictly worse. A parameter flipped to Inf yields zero force forever. Define the fault response as "reload golden and resume within T ≤ ~300 ms", and put the freshness check on the actuator side in simulated ticks. An in-thread watchdog cannot see its own hang, and in a lockstep sim the hang scenario does not even exist unless the plant keeps integrating on the stale command.</p>
+        <div class="hit"><span class="chip h">High</span><span class="src">01 · 02 · 04 · 05</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">07</div><div class="body">
+        <h3>The compiler removes the protected blob (verified on this Mac).</h3>
+        <p>Apple clang 17 at -O2 with injection compiled out kept a static blob in registers for 1,000,000 ticks, shrank three words to 1-byte bools, and wrote memory once after the loop. The check compares registers with registers. The ON and OFF builds are different programs. Fix: <code>volatile</code> word storage, decode once per tick into local <code>Params</code>/<code>State</code>, run the pure <code>step()</code>, encode back. Never <code>-ffast-math</code> (it folds <code>isfinite</code> to true); add <code>#ifdef __FAST_MATH__ #error</code>.</p>
+        <div class="hit"><span class="chip h">High</span><span class="src">02 · 03 · 04</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">08</div><div class="body">
+        <h3>Nothing protects the protector, and there is no fault management.</h3>
+        <p>The mode word, fault counters, golden copy and FDIR state are all outside the protected region; one flip in the mode word silently downgrades SECDED to none. <code>Output.fault</code> is a per-tick flag that nothing counts, escalates, or acts on. Add a 4-state machine (NOMINAL → RECOVERING → DEGRADED → SAFE latched) with persistence counters, Hamming-distance-16 state codes, <code>(v, ~v)</code> counters, and a compile-time protection policy instead of a runtime mode word. NASA-HDBK-1002 and the cFS HS/LC apps are the precedent.</p>
+        <div class="hit"><span class="chip h">High</span><span class="src">02 · 04 · 05</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">09</div><div class="body">
+        <h3>The staged modes climb the wrong axis; pick one data scheme.</h3>
+        <p>baseline → checksum → secded stages stronger codes on the same fault class, so stage 2 exists only to be beaten. Each stage should close a new class: none → data → data+compute → full. For the data scheme: CRC-32C (HD=6 at 416 bits, 2.9 ns with the intrinsic) over Fletcher-32 (HD=3), and Hsiao(39,32) on the F32 words using the OpenTitan encoder with an exhaustive codec test. Order matters: SECDED alone miscorrects 60–69% of triple-bit patterns, so decode first, then CRC over the corrected plaintext. Write corrected words back or "Corrected" counts inflate every tick.</p>
+        <div class="hit"><span class="chip h">High</span><span class="src">02 · 05</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">10</div><div class="body">
+        <h3>Docker is not reproducibility.</h3>
+        <p><code>std::uniform_int_distribution</code> is implementation-defined: libc++ (macOS) and libstdc++ (Linux) give different fault lists from the same seed. Clang defaults to <code>-ffp-contract=on</code>, so Apple Silicon fuses FMAs where x86 builds do not and borderline trajectories flip. Use an in-repo PRNG (splitmix64), generate an explicit <code>faults.csv</code> with a hash in the descriptor, build with <code>-ffp-contract=off</code>, and promise bit-exactness only on the same architecture.</p>
+        <div class="hit"><span class="chip m">Medium</span><span class="src">03 · 04</span></div>
+      </div></div>
+
+      <div class="theme"><div class="idx">11</div><div class="body">
+        <h3>Scope is 16–24 hours against "a couple of focused hours".</h3>
+        <p>Honest estimate of SPEC-01+02 as written. The failure mode is breadth without finish: a half-tuned controller, placeholder numbers, and slide 3 still reading "[fill after open decision]". Ship an 8–10 h MVP and say what was cut. Cut: Docker, gain-schedule LUT, CRC-vs-Fletcher debate, CFCSS, Reed-Solomon, MBU adjacency, async injection, bus CRC. Document, do not build.</p>
+        <div class="hit"><span class="chip m">Medium</span><span class="src">04 · 05</span></div>
+      </div></div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">Architecture · as defined in SPEC-01 §4–§6 · holes marked</div>
+    <h2>The tick pipeline you specified</h2>
+    <figure>
+    <svg viewBox="0 0 1000 330" role="img" aria-label="SPEC-01 tick pipeline: plant, sense, protect-check on one blob, PID control with integrator and derivative state, actuate, with an in-process watchdog, a RAM golden copy, a runtime mode word and a compile-gated injector; eight numbered hole markers on the parts the research found weak" style="max-width:100%;height:auto;display:block">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1" font-family="JetBrains Mono, Menlo, monospace" font-size="11">
+        <!-- main flow row y=120 -->
+        <rect x="20" y="95" width="110" height="50" rx="2"/>
+        <text x="75" y="116" text-anchor="middle" fill="currentColor" stroke="none">plant</text>
+        <text x="75" y="132" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">cart-pole, RK4</text>
+
+        <line x1="130" y1="120" x2="180" y2="120" marker-end="url(#ah)"/>
+        <text x="155" y="112" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">sense</text>
+
+        <rect x="180" y="80" width="170" height="80" rx="2"/>
+        <text x="265" y="100" text-anchor="middle" fill="currentColor" stroke="none">protect-check</text>
+        <text x="265" y="116" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">CRC32 or Fletcher</text>
+        <text x="265" y="130" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">+ SECDED on 32-bit words</text>
+        <text x="265" y="148" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">one blob, re-encoded each tick</text>
+
+        <line x1="350" y1="120" x2="400" y2="120" marker-end="url(#ah)"/>
+        <text x="375" y="112" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">decode</text>
+
+        <rect x="400" y="80" width="170" height="80" rx="2"/>
+        <text x="485" y="100" text-anchor="middle" fill="currentColor" stroke="none">control</text>
+        <text x="485" y="116" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">PID on pole angle</text>
+        <text x="485" y="130" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">I state, D memory</text>
+        <text x="485" y="148" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">clamp with p.force_limit</text>
+
+        <line x1="570" y1="120" x2="620" y2="120" marker-end="url(#ah)"/>
+        <text x="595" y="112" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">u</text>
+
+        <rect x="620" y="95" width="110" height="50" rx="2"/>
+        <text x="675" y="116" text-anchor="middle" fill="currentColor" stroke="none">actuate</text>
+        <text x="675" y="132" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">force on cart</text>
+
+        <!-- actuate back to plant -->
+        <path d="M675,145 L675,200 L75,200 L75,145" marker-end="url(#ah)"/>
+        <text x="375" y="214" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">next tick</text>
+
+        <!-- inject -->
+        <rect x="780" y="80" width="200" height="50" rx="2" stroke-dasharray="4 3"/>
+        <text x="880" y="100" text-anchor="middle" fill="currentColor" stroke="none">inject (test only)</text>
+        <text x="880" y="116" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">XOR bit in blob, at rest</text>
+        <path d="M780,105 L740,105 L740,60 L265,60 L265,80" marker-end="url(#ah)" stroke-dasharray="4 3"/>
+        <text x="500" y="54" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">after last good encode, before decode</text>
+
+        <!-- protected blob -->
+        <rect x="180" y="240" width="170" height="70" rx="2"/>
+        <text x="265" y="258" text-anchor="middle" fill="currentColor" stroke="none">ProtectedState blob</text>
+        <text x="265" y="274" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">gains · LUT · I · D · meta</text>
+        <text x="265" y="290" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">force_limit · safe_force</text>
+        <line x1="265" y1="240" x2="265" y2="160" marker-end="url(#ah)"/>
+
+        <!-- golden -->
+        <rect x="400" y="240" width="170" height="70" rx="2"/>
+        <text x="485" y="258" text-anchor="middle" fill="currentColor" stroke="none">golden copy (RAM)</text>
+        <text x="485" y="274" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">"reload optional"</text>
+        <text x="485" y="290" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">unverified</text>
+        <line x1="400" y1="275" x2="350" y2="275" marker-end="url(#ah)" stroke-dasharray="4 3"/>
+
+        <!-- recovery -->
+        <path d="M485,160 L485,240" stroke="#ff6b35" marker-end="url(#ao)"/>
+        <text x="500" y="205" fill="#ff6b35" stroke="none" font-size="10">on detect: reset I, reset D</text>
+
+        <!-- watchdog -->
+        <rect x="620" y="240" width="170" height="70" rx="2"/>
+        <text x="705" y="258" text-anchor="middle" fill="currentColor" stroke="none">watchdog (in-process)</text>
+        <text x="705" y="274" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">miss → safe u = 0</text>
+        <text x="705" y="290" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">or hold-last, wall-clock</text>
+        <line x1="705" y1="240" x2="675" y2="145" marker-end="url(#ah)" stroke-dasharray="4 3"/>
+
+        <!-- mode word -->
+        <rect x="820" y="240" width="160" height="70" rx="2"/>
+        <text x="900" y="258" text-anchor="middle" fill="currentColor" stroke="none">--mode word</text>
+        <text x="900" y="274" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">baseline / checksum /</text>
+        <text x="900" y="290" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".6">secded · runtime, unprotected</text>
+
+        <!-- hole markers -->
+        <g font-size="10" font-weight="600">
+          <circle cx="400" cy="80" r="9" fill="#ff6b35" stroke="none"/><text x="400" y="84" text-anchor="middle" fill="#080808" stroke="none">1</text>
+          <circle cx="485" cy="172" r="9" fill="#ff6b35" stroke="none"/><text x="485" y="176" text-anchor="middle" fill="#080808" stroke="none">2</text>
+          <circle cx="350" cy="300" r="9" fill="#ff6b35" stroke="none"/><text x="350" y="304" text-anchor="middle" fill="#080808" stroke="none">3</text>
+          <circle cx="820" cy="240" r="9" fill="#ff6b35" stroke="none"/><text x="820" y="244" text-anchor="middle" fill="#080808" stroke="none">4</text>
+          <circle cx="790" cy="285" r="9" fill="#ff6b35" stroke="none"/><text x="790" y="289" text-anchor="middle" fill="#080808" stroke="none">5</text>
+          <circle cx="570" cy="240" r="9" fill="#ff6b35" stroke="none"/><text x="570" y="244" text-anchor="middle" fill="#080808" stroke="none">6</text>
+          <circle cx="180" cy="80" r="9" fill="#ff6b35" stroke="none"/><text x="180" y="84" text-anchor="middle" fill="#080808" stroke="none">7</text>
+          <circle cx="880" cy="130" r="9" fill="#ff6b35" stroke="none"/><text x="880" y="134" text-anchor="middle" fill="#080808" stroke="none">8</text>
+        </g>
+      </g>
+    </svg>
+    <figcaption class="src" style="margin-top:10px;line-height:1.7">
+      <span class="chip c">1</span> compute window: a flip after decode is re-encoded as valid &nbsp;
+      <span class="chip c">2</span> reset I/D is a no-op with LQR, harmful with PID &nbsp;
+      <span class="chip c">3</span> clamp and safe force live inside the corruptible blob &nbsp;
+      <span class="chip c">4</span> mode word and counters unprotected &nbsp;
+      <span class="chip c">5</span> zero force drops the pole in 0.3–1.3 s; in-thread watchdog can't see its own hang &nbsp;
+      <span class="chip c">6</span> golden in RAM, unverified, reload optional &nbsp;
+      <span class="chip c">7</span> -O2 keeps the blob in registers unless storage is volatile &nbsp;
+      <span class="chip c">8</span> injecting only at rest makes the campaign a tautology
+    </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">Architecture · recommended · orange = what changes</div>
+    <h2>The tick pipeline the research recommends</h2>
+    <figure>
+    <svg viewBox="0 0 1000 420" role="img" aria-label="Recommended pipeline split into a flight lane and a sim lane: volatile encoded store with Params under a fixed CRC plus SECDED and State re-encoded after invariants, decode to locals, range table, pure step with swing-up and LQR from a DARE solved at init, dual-execute compare, output guard with constant clamp, FDIR state machine, stamped command; sim lane with actuator freshness monitor, plant, plausibility guard, injector hooks at rest, in use and on inputs, and a campaign runner split into verification and assessment" style="max-width:100%;height:auto;display:block">
+      <g fill="none" stroke="currentColor" stroke-width="1" font-family="JetBrains Mono, Menlo, monospace" font-size="11">
+        <!-- lane labels + boundary -->
+        <text x="20" y="22" fill="currentColor" stroke="none" font-size="10" letter-spacing="2" opacity=".6">FLIGHT  ·  flight/  ·  no I/O, no clock, no heap, C++14, identical with injection on or off</text>
+        <line x1="20" y1="238" x2="980" y2="238" stroke-dasharray="6 4" opacity=".6"/>
+        <text x="20" y="256" fill="currentColor" stroke="none" font-size="10" letter-spacing="2" opacity=".6">SIM  ·  sim/  ·  plant, injector, campaign, CSV, renderer</text>
+
+        <!-- flight row 1: store -> decode -> range -> step -> dual -> guard -> fdir -> cmd  (y=70) -->
+        <rect x="20" y="40" width="150" height="80" rx="2" stroke="#ff6b35"/>
+        <text x="95" y="58" text-anchor="middle" fill="#ff6b35" stroke="none">volatile store</text>
+        <text x="95" y="74" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">Params: CRC-32C fixed</text>
+        <text x="95" y="88" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">at init + Hsiao(39,32)</text>
+        <text x="95" y="104" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">State: re-encoded after invariants</text>
+
+        <line x1="170" y1="80" x2="205" y2="80" marker-end="url(#ah)"/>
+        <text x="187" y="72" text-anchor="middle" fill="currentColor" stroke="none" font-size="9" opacity=".7">decode</text>
+
+        <rect x="205" y="55" width="95" height="50" rx="2" stroke="#ff6b35"/>
+        <text x="252" y="76" text-anchor="middle" fill="#ff6b35" stroke="none">range table</text>
+        <text x="252" y="92" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">sign + band per field</text>
+
+        <line x1="300" y1="80" x2="335" y2="80" marker-end="url(#ah)"/>
+
+        <rect x="335" y="40" width="160" height="80" rx="2"/>
+        <text x="415" y="58" text-anchor="middle" fill="currentColor" stroke="none">step() · pure</text>
+        <text x="415" y="74" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">swing-up (energy) → LQR</text>
+        <text x="415" y="88" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">K from DARE solved at init</text>
+        <text x="415" y="104" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">θ wrapped · no statics</text>
+
+        <line x1="495" y1="80" x2="530" y2="80" marker-end="url(#ah)"/>
+
+        <rect x="530" y="55" width="105" height="50" rx="2" stroke="#ff6b35"/>
+        <text x="582" y="76" text-anchor="middle" fill="#ff6b35" stroke="none">dual-exec</text>
+        <text x="582" y="92" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">run twice, compare</text>
+
+        <line x1="635" y1="80" x2="670" y2="80" marker-end="url(#ah)"/>
+
+        <rect x="670" y="55" width="115" height="50" rx="2" stroke="#ff6b35"/>
+        <text x="727" y="76" text-anchor="middle" fill="#ff6b35" stroke="none">output guard</text>
+        <text x="727" y="92" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">const clamp · const safe</text>
+
+        <line x1="785" y1="80" x2="820" y2="80" marker-end="url(#ah)"/>
+
+        <rect x="820" y="40" width="160" height="80" rx="2" stroke="#ff6b35"/>
+        <text x="900" y="58" text-anchor="middle" fill="#ff6b35" stroke="none">FDIR</text>
+        <text x="900" y="74" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">NOMINAL → RECOVERING</text>
+        <text x="900" y="88" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">→ DEGRADED → SAFE (latched)</text>
+        <text x="900" y="104" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">persistence · HD-16 codes · (v,~v)</text>
+
+        <!-- golden + recovery (y=170) -->
+        <rect x="20" y="150" width="150" height="60" rx="2"/>
+        <text x="95" y="170" text-anchor="middle" fill="currentColor" stroke="none">golden = params_default()</text>
+        <text x="95" y="186" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">compile-time literals</text>
+        <text x="95" y="200" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">CRC pinned in a test</text>
+        <line x1="95" y1="150" x2="95" y2="120" marker-end="url(#ah)" stroke="#ff6b35"/>
+        <text x="110" y="140" fill="#ff6b35" stroke="none" font-size="10">verified reload, mandatory</text>
+
+        <path d="M900,120 L900,180 L170,180" stroke="#ff6b35" marker-end="url(#ao)"/>
+        <text x="540" y="174" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">on DED / CRC / range / mismatch: reload golden + bumpless reseed, drop one rung</text>
+
+        <!-- cmd down to sim -->
+        <path d="M900,120 L900,200 L940,200 L940,300" marker-end="url(#ah)"/>
+        <text x="962" y="250" fill="currentColor" stroke="none" font-size="10" opacity=".7" transform="rotate(90 962 250)">cmd + seq</text>
+
+        <!-- sim row (y=300) -->
+        <rect x="800" y="275" width="140" height="50" rx="2" stroke="#ff6b35"/>
+        <text x="870" y="296" text-anchor="middle" fill="#ff6b35" stroke="none">actuator monitor</text>
+        <text x="870" y="312" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">freshness in ticks · ZOH</text>
+
+        <line x1="800" y1="300" x2="700" y2="300" marker-end="url(#ah)"/>
+        <text x="750" y="292" text-anchor="middle" fill="currentColor" stroke="none" font-size="9" opacity=".7">force</text>
+
+        <rect x="590" y="275" width="110" height="50" rx="2"/>
+        <text x="645" y="296" text-anchor="middle" fill="currentColor" stroke="none">plant</text>
+        <text x="645" y="312" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">RK4 · --dt --substeps</text>
+
+        <line x1="590" y1="300" x2="490" y2="300" marker-end="url(#ah)"/>
+        <text x="540" y="292" text-anchor="middle" fill="currentColor" stroke="none" font-size="9" opacity=".7">sensors</text>
+
+        <rect x="380" y="275" width="110" height="50" rx="2" stroke="#ff6b35"/>
+        <text x="435" y="296" text-anchor="middle" fill="#ff6b35" stroke="none">plausibility</text>
+        <text x="435" y="312" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">|Δθ − θ̇·dt| ≤ tol</text>
+
+        <path d="M380,300 L200,300 L200,130" marker-end="url(#ah)"/>
+        <text x="290" y="292" text-anchor="middle" fill="currentColor" stroke="none" font-size="9" opacity=".7">Input, next tick</text>
+
+        <!-- injector -->
+        <rect x="20" y="345" width="330" height="60" rx="2" stroke-dasharray="4 3"/>
+        <text x="185" y="365" text-anchor="middle" fill="currentColor" stroke="none">injector · FAULT_POINT hooks</text>
+        <text x="185" y="381" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">at rest · in use (locals inside step) · Input · golden · CRC word</text>
+        <text x="185" y="396" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">in-repo PRNG · explicit faults.csv · -ffp-contract=off</text>
+        <path d="M95,345 L95,215" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+        <path d="M250,345 L250,120" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+        <path d="M330,345 L330,330 L435,330 L435,325" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+
+        <!-- campaign + renderer -->
+        <rect x="380" y="345" width="300" height="60" rx="2"/>
+        <text x="530" y="365" text-anchor="middle" fill="currentColor" stroke="none">campaign runner</text>
+        <text x="530" y="381" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">Verification (exhaustive, gates) · Assessment (N≈3000, Wilson CI)</text>
+        <text x="530" y="396" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">oracle = fault-free twin · event column · descriptor</text>
+
+        <rect x="710" y="345" width="270" height="60" rx="2"/>
+        <text x="845" y="365" text-anchor="middle" fill="currentColor" stroke="none">renderer + backtest · built</text>
+        <text x="845" y="381" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">sim/render.py · sim/backtest.py</text>
+        <text x="845" y="396" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".7">scenarios/*.json · stats after each run</text>
+      </g>
+    </svg>
+    <figcaption class="src" style="margin-top:10px;line-height:1.7">Flight lane and sim lane are separate libraries; the flight binary is byte-identical whether the injector is linked or not. Every orange element is a change from SPEC-01. The store, range table, output guard and FDIR are new layers; the controller and recovery are replacements.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">Cross-analysis · element by element</div>
+    <h2>What to improve, and how</h2>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>Element</th><th>SPEC-01 / 02 says</th><th>Hole</th><th>Improve to</th><th>Est.</th></tr></thead>
+      <tbody>
+        <tr><td>Controller</td><td>PID on pole angle; "optimization-based" mapped in the summary</td><td class="what">θ-only PID drifts 0.57 m/s and leaves the rail at 4.3 s; cannot swing up; not optimization-based. LQR baseline fixes drift but basin is 43°. <span class="src">01 · 05</span></td><td class="what">Energy swing-up with hysteresis handoff to LQR; DARE solved in C++ at init; iLQR as stretch. Purge "PID" from docs and slides.</td><td class="hrs">3–4 h</td></tr>
+        <tr><td>Protected blob</td><td>One ProtectedState: gains + LUT + I + D + meta, checked and re-encoded every tick</td><td class="what">Mid-tick corruption comes back with valid check bits. Half the bits are dead. LUT is padding. <span class="src">02 · 03</span></td><td class="what">Params: CRC-32C fixed at init + Hsiao(39,32), never recomputed. State: re-encoded only after invariants pass. Drop the LUT.</td><td class="hrs">45 min</td></tr>
+        <tr><td>Clamp and safe force</td><td>Stored in Params; fault path emits p.safe_force</td><td class="what">Sign flip of force_limit gives full-force positive feedback, no flag. isfinite catches 1 of 256 flips. <span class="src">01 · 02 · 04</span></td><td class="what">Compile-time constants applied in an output guard after step(); per-field range table independent of ECC.</td><td class="hrs">30 min</td></tr>
+        <tr><td>Recovery</td><td>Reset integrator and derivative memory; gain reload optional</td><td class="what">No-op with LQR defaults; in PID it injects g·I_old of cart velocity and a 10–43 N kick. <span class="src">01 · 02 · 04 · 05</span></td><td class="what">Mandatory verified golden reload (params_default, CRC pinned) + bumpless filter reseed + 4-state FDIR with persistence, escalation and a latched SAFE.</td><td class="hrs">1 h</td></tr>
+        <tr><td>Watchdog</td><td>In-process deadline; miss → zero force or hold-last</td><td class="what">Cannot see its own hang; lockstep sim has no hang scenario; zero force drops the pole in 0.3–1.3 s; wall-clock is flaky. <span class="src">01 · 02 · 04</span></td><td class="what">Actuator-side freshness monitor in simulated ticks; stall injection with ZOH on last u; recovery deadline ≤ 300 ms tested. Call it a deadline monitor.</td><td class="hrs">45 min</td></tr>
+        <tr><td>Modes</td><td>Runtime --mode baseline / checksum / secded</td><td class="what">Mode word is an unprotected single point of failure; stages climb code strength, not fault classes. <span class="src">04 · 05</span></td><td class="what">Compile-time policy: none / data / data+compute / full. Each stage closes a new fault class.</td><td class="hrs">20 min</td></tr>
+        <tr><td>Storage</td><td>Ordinary struct in RAM</td><td class="what">Apple clang -O2 keeps the blob in registers with injection compiled out (verified). ON and OFF builds differ. <span class="src">02 · 03 · 04</span></td><td class="what">volatile U32 words + check bytes → word-loop decode into locals → step() → encode. Ban fast-math; -ffp-contract=off.</td><td class="hrs">30 min</td></tr>
+        <tr><td>Injection</td><td>XOR in the blob after last encode, before decode</td><td class="what">Only the codec is tested; "hardened beats baseline" cannot fail; compute window never hit. <span class="src">02 · 03 · 05</span></td><td class="what">FAULT_POINT hooks at rest, in use, on Input, on golden and the CRC word. Verification campaign (exhaustive) + Assessment (N≈3,000/mode, paired fault list, Wilson CIs, post-injection window vs fault-free twin).</td><td class="hrs">2 h</td></tr>
+        <tr><td>Build layout</td><td>Seven modules in one tree; Plant linked into the fsw library</td><td class="what">Flight/sim boundary not drawn; injection flag changes the tested artifact; F´ wrap would be a rewrite. <span class="src">04</span></td><td class="what">flight/ (no I/O, clock or heap; C++14) and sim/ (plant, injector, CSV, renderer, campaign). One entry point tick(SensorFrame, ActuatorCmd, Tlm, Events).</td><td class="hrs">30 min</td></tr>
+        <tr><td>Sensor path</td><td>Optional checksum on plant state "for realism"</td><td class="what">A flipped Input.theta is "correct data" to every layer and gets integrated into State. <span class="src">02 · 03</span></td><td class="what">Analytic-redundancy guard on Input; hold last good sample one tick on reject. Promote from limitation demo to a feature.</td><td class="hrs">20 min</td></tr>
+        <tr><td>Definition</td><td>Checksum + SECDED + watchdog + reset</td><td class="what">A mechanism list, and only for data at rest, which hardware EDAC already covers. <span class="src">05</span></td><td class="what">A testable requirement (fault model, required behaviour, metrics) plus a coverage matrix: data at rest, computation, input, output, timing, control flow, each marked built / documented / out.</td><td class="hrs">45 min</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">Back-test evidence · sim/backtest.py · every run is the real C++ binary</div>
+    <h2>"Stabilize from any non-moving start", measured</h2>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>Scenario</th><th>Sweep</th><th>Runs</th><th>Success</th><th>Settle (median / p90)</th><th>Finding</th></tr></thead>
+      <tbody>
+        <tr><td>basin</td><td class="what">θ₀ 0–180° by 1°, x₀ = 0</td><td class="hrs">181</td><td class="hrs">24.3%</td><td class="hrs">3.57 s / 4.26 s</td><td>Edge at 43°. Every failure is a track exit, never a fall: the pole stays up, the cart runs out of rail.</td></tr>
+        <tr><td>grid</td><td class="what">θ₀ −180–180° by 2° × x₀ {−1, −0.5, 0, 0.5, 1} m</td><td class="hrs">905</td><td class="hrs">23.3%</td><td class="hrs">3.57 s / 4.24 s</td><td>Basin skews with x₀: at x₀ = −1 m it is +48° / −32°. The cart needs room on the side it must first move toward.</td></tr>
+        <tr><td>mistune</td><td class="what">±10% cart mass, pole mass, half-length (27 corners) × θ₀ {5, 15, 25, 35}°</td><td class="hrs">108</td><td class="hrs">100%</td><td class="hrs">3.67 s / 4.12 s</td><td>All corners pass. Confirms report 01: the ±10% sweep proves nothing for LQR; what breaks is the swing-up switch and friction, neither modelled yet.</td></tr>
+        <tr><td>rate</td><td class="what">dt {2, 5, 10, 20, 50} ms × substeps {1, 4} × θ₀ 0–60°</td><td class="hrs">130</td><td class="hrs">69.2%</td><td class="hrs">3.47 s / 4.29 s</td><td>Identical 40° basin at every tick rate. Gains designed at 10 ms survive a 50 ms tick. Plant sub-stepping changes nothing.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABZYAAAJPCAYAAADv+IFuAAAAOnRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjEwLjgsIGh0dHBzOi8vbWF0cGxvdGxpYi5vcmcvwVt1zgAAAAlwSFlzAAAT/gAAE/4BB5Q5hAAAimBJREFUeJzt3QeYXWWdP/A3vVfSSEIaKRAIhA6hI72KImJZdUVdy4pl3dV1/a/K7uqKdS1rX7tYAJWiVOm9hQAJpEFCCCEhlfT6f35vPMOdyUwyZzKTmUk+n+eZJ5k7d+6ce95zzr33e37n97bp3LnzlgQAAAAAAPXUtr53BAAAAAAAwTIAAAAAAKWpWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAqEPXrl3TWWedl7p06dpi1tEBB0xIhxxyeHMvBgAAAHs4wTIA1OHMM89LY8aMS2vWrG4x62jlypXp7W//+7TXXv2ae1EAAADYg7VPrdDIkaPSBRdclIYOHZbWr1+Xnnji8fSnP12d1q5dk3/et+9e6XOf+2LV/detW5cWL34lPfroQ+mOO25NGzZsqPZ4PXr0TGeffX6uAuvWrXtasWJ5mjbtqXT11b9NmzZtqrpf+/bt0xe+8LXUuXPn9K1vfTXNmPFsain22Wd4Ouusc9PIkaPzcr7yyqL0wAP3pDvv/Gu1+40cuW/62Mc+mdavX5/+9V8/njZsWF/1s/qst5r3qU38zuc//+l6L3tUA8ZXYdWqlWnhwpfT7bffmiZPfrTafY8++th0yimnp379+qXly5ene++9M916603V7vPhD/9T6tSpU/rKV75Q598cPXpsuuyyT9T6sxj77373m6k5tWnTJh133Elp0qTjU//+A9Lq1avSrFkz0k033ZAWLHgp3+ezn/1CVbC0cePGtHTpkjR9+jPpxhuvT8uXL6t6rLe97V3pqKMm1fp3LrvsffnfI488JgdVIbaNZcuWpqlTn0q33npj3h+aW8eOndJpp52ZJk48LPXp0zevj3nz5qa77ro9PfPM1KrnecABB6VPf/rj9doeDj30iHTiiaekwYOHpk2bNqb5819MN9/856rHC7EvxfZ2xBFH521/9erV6fnnZ+XjTexj4Zvf/EGtyxz7yz/904eqvo/fP+ecC9K++45N3bt3z2P03HOz8pguWrSw6n6jRo3O+8OQIUPz34/9aebM6emPf7yq2vGoPuvsda87PY0fPyH1798/bdmyJc2b90L6y1+uS7Nnz9xme4sK2NNOOyv/3d///sp09923b/OYsR5juzz55FNTz5690he/+Ln00kvzd7gsJ5xwSrrggjfm40KxPfXo0SNdeOHFaf/9D0wdOnRIL774Qrr++j9uc1yNSuE3vOHiNGHCwalt23bp2Wenpquu+k21bbxy+610//13pyuv/EVqqNjWjjvuxPTDH/7vNj+L/fKkk07NoXOxTcY+Gs9hyZLFVfc78MCD8/oaOHDv1KVLl7xvTZkyOd188w1pzZqtr1llzZnzXB7D2E5++cufpOZWrP+NGzekz33utTGuPP587nP/WrVeevXqncd03LjxqV27tmnWrJnpmmt+lxYuXFDt2Hbnnbfl1+FC8frz4IP3pV/96qf1WrbKY/1nP/upfJwM8f7hX/7lM/n/ldvxjpZt0qQT0iWXvD39z/98OY93pde97oy8nf/3f1+e5s+ft8Njb9n1Vp/XhTLi8U844eTUv//AvAwvv7wgPf74o+muu/7aoNf6Hb1Hqs9rVuV96lKsk/q8LgAAAE2r1QXLAwYMTB/84MfS7Nkz0g9/+J0cblx44Zvyh6Dvfvd/qt33tttuTk888Wjq3LlL/uBx3nkXphEjRlYLCeL3P/7xT+Uw7brr/pA/rAwatHf+gNixY8dqH/wjQIgPTEVY0FKC5bFj90v/8A8fzh/Q4sP2unVr84fpgw8+dJtg+cADD8r/xnPbb7/905NPPrHN421vvcUH36997bUPmxFanXnmuelnP/tRWrx4UdUHxoaID6IRdHfv3iMde+yJ6d3v/of0+9//Ot199x355xHuvfWt70x//evN6amnpuQA7txzL8wftm+55cYG/c0//OH36bnnqodsq1c3LOxpTBFcHH740TnYje2sa9du6aijjkmHHXZkuuGGP1XdL8b8+uv/kNq375BPGpxxxjlp/PgDc1Cydu3afJ8IHSKAj239Pe/5YNX41ibGMcZ4yJB9cmh26KGHp29844qqELW5fOADH0kDBw5MN954Qw5sIpiNbTPCn4YECKeffnY+mRQBRKzPCETi8fbb77XHi+3qve/9UBo+fGRehy+8MCefhIqgce+9h1RbJ4888mAOYypt3ryl6v+x7j/xiU+nZcuWpeuuuyaH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K4LvuD0C/XvuuTO9+uqKNGDAoHTOOefnY10cayPwj2D6rW99Z368CNivvPLneR1vz8MPP5De/Oa3p2uu+V1efwAAALQeWmHswZ5//rm0bFnDKkfLiKq3+Fs7ChgaUwQU8Tfji+YxatToHFpdffWV6fHHH01TpjyeHn/8kbT33oPTIYccVvrxogI5qkqjcjOqQW+88focKke1Y6X27duln/70h7kKddUqQVVrF5Xpl1/+mfTnP1+bTxhNnfpUDl4jKD311DOq7tepU+e0aNHCHHL+5Cc/qPPxevXqnR577OH0H//xmXTHHbfWezmimjjC1VtvvanayY4IUa+55jc5IH366SfTD3/4nbRp06YcQjd0X4gAtzh+xdfixa+knXHYYUfmZYvwt6ZYniuu+I90551/zSeTYt387Gc/TN2790jHHHNc1f3uu++u9Ic//C4vd9wvvr/uuj+k4cNHpGHDRuT7XHLJ36X169el733vm/l4/653vW+Hy/bkk0/k0H7ixPLHBAAAAJqXiuVmEmFYfH3lK19IF1/81jRo0OC0cOHLuZqtZrXdUUdNSqeccnq+DHz16tX58uM//emqtG7duvzzt73tXWnQoL3z5cgjR47KAczeew/Jl4RHNd9Pf/qjqoq4sWP3T//4jx/bbouI+i7bfvuNz5WD++wzLHXr1j1X2EXo8Oc/X5c2bFjfpOstgou4/Lxv371yld1VV12Z5s59vvTjHX/8yemww45IAwcOypfcx/O855470r333rVNy4gIqw4//Mi8DleufDXdfPOfq7VhiNYilSq//9zn/rXaZeXN4fDDj0pnnnluriqMdfXQQ/dX+3nxPAvR9zS2vRDBVlz+X8b++x+QA7annpqSv491HNtLhMHxs8oq4x1p3759Xr5bbvlL1W0XXvimHJRFhWosaxG+/eAH30ktVbRqiO03xiICzqiofuGFubkCO0LR7bUoqat1TbQ4OPbYE1L//gPTunVr06xZM9N1111T9XghqnOjx25Ucvfq1SutWLEij8u1116dx6Nwwgknp2OPPbHqWPPEE4+lP/2p+n169OiZzj//DXn/79q1W66mnTVrem5lUBlcDhs2PJ177oVpn32G5/GLgDiuXKgMZuujtmPJxo0b83hXVhvH43//+9/K/4/jQl0iOI2vsuMWlciPPPJgtf04jo1h9uxZVbfFeps3b24+TjTFvtCQiu9+/fpX23cq1VYlXLQF2VE1d3FFQFSRh1Gj9k1f+9p/599/4YU56ctf/lauJI91Upfo+RzbaoT0EVYDAADQegiWm1kEt3/96y05PImg9B3vuDT953/+v6qAJqrkIjh+8MH7crVYhGjnnXdh7ov5ne98vepxop/oz3/+fzlcvuCCi3Lg+fvf/zr36xw37p40bdrWS6Dnzn2u3i0idrRsEV5HqPvAA/fmcCLCiwiSIjD7+c9/3IRrLeVLpyNgi8mfzjjj7HxJeQSfZSemGjp0aHriicfTyy8vyM8zKgvf9Ka35ud43313V7tvrNc777w13X33HbnXaCzDs89OqwqaivV6xhnn5rYfP/7xa/1MKy9rbw7xvGL8IviPEDOqDGNMK0UYVjyHSy/9YP7+ppuurwryyoptNcK+4ncvueQdOdCLYDsuoy8jtq2oaizC0gg148TJ1Vf/Nl1yydvz4+1sVeeuEBW2UXl9ww1/TM89Nzt17949jRs3Pgd4lUFwfb3xjZek448/KZ8IierRjh075seLHtPF40Wo+4//+E9p0KBB6aab/pzmzp2TevfunY444uhclVpsv7E9HH30sfmESZx4iHA2WiLEsv34x9+r+ptxTBkyZJ98civGN+4X1aYxPsVYx0maD3zgI2nRokXp17/+aT4JFiFsnABrDBGUx+M9/fTWoLapRc/2OHnxgx98e5vq+BChcaX4PgL8GI8Ij8vuCx//+Kfy2MRx45FHHkp//vOfGrQPhmKdv/LKonr/TlRhF5XTtYXssU0NHjw0nXXW+fk+c+ZsPakXJ+Ziu4ptKE5KxQmMIlSOvswHH3xofi2rWTkd+25snwAAALQuguVmdsMN11b1CI0gIXrGRoBRhABRJRchz69+9dP8fVwKHh/sI1CKisAIicKCBQvyJGWbNm3Ml1ZH1W2EvtHHM6rjimB57dq19W4PsaNlu/32W6rdPyZhisAqgtXorblhw4ZGW0/bLtufqipuIwD93Oe+mCs366rKq0vlhFixXmPSqqgYjUC/ZrD82GMPpdtv33rpfKyDf//3/8qXt0ewHor1GtXMGzduaLQ2HBHsde7cJYdMDe0Z/LrXnZGDrWgREaFObA/RFzaCxELlthHLH89jZ55DTFZWLG+MTVTB/vCH305vfeu7chVl2cfauoxrUocOHXOv7ptuuiHNmTM73x5VkU0pJluLcDsq/8sEdDWNHDk6B7633HJj1W2TJz/WoMeKk0sRKt95523pD3/4fbXHKypIQwR9cSIhKrmfeuqJqttj/4ltPsRzO/HEU/IJoTiOhNgXInT+8If/KbdsKKpYoyr14YcfzK0fKh+rUhxz4iqGmDwvWh2E6dOfSY3lvPPekCfKq1yPTSkmA4z2FXECqlKxLcT6KSbri9A1TrqF2G8jWK7vvhD7eJwgiGrf2E8POGBCPokVY/3jH3+3QcseVeWhvifd4gTB619/UR77yjEufPKT/54GDx5S9Xr0k598v+qKmN/+9lfpve/9YH7dikD5F7/4ca7IPvLISflkULyeRNV2HFsqxYnJ4jEBAABoPQTLzey552ZW/b+ouIxLzSOw6Ny5c642iyrDStFj9I1vTGn48FFVwXIRWkQ4GKJyeev363Lv0cZetq3/75Ev6x8/fkKuUo5AotCtW7cm7d9cBOUhJiCMsC6qhMuK34nnEMFbhOdFIFdb9Wjl5e7F+qjvxF87IyrUo/ovWg3UDPDqKypMo61CZaVghEKVwXJTaNeufd42Igi88sqfbfeS+Po+XkwYFtt7TAoZgd6uECdMPvOZyxvUEqRSnAQZP/7AdP75b8whb1R7Rk/ahoiTGrG9PvDAfdv8bPPmzRX32z/3I64MlQvF9hD3icd617vem1KKr+oiKC2C5VjmqBZfuHBBmj792dxLt+bkc3GMiDGKQDYe97nnZjVaRXm0o4mWHTFZXuXkeE1lwoSJOfSM/a+241CcsInWIL/4xU/SmjWr0tlnX5A6duzQoH0h9sn4KsQVERFMR5V7VAg35PkWJ/jat992mWpz0UVvydXg3/rWV2ptQ/LTn/4gVx/HNnH66efkPspRyR1V2nESNNr+xDYerS3iBFCMexy3fvvbX1S9PtUUJwkq260AAADQOgiWm1nlB+0iDCoC2giWw+rVK6v9ToREIT7c1wyIal5ivGXL5mrVi421bOG97/3HfBn8jTdel+bPfzEHGNGvOPpBR4VnU6rZFzS+79mzZ+mw8EMf+lhasuSV3FIhKvTieUa1Xm09WiurhYv1XLk+WrI4CVBzIrvaeqs2pji5EYFctBaZPn1aVWVubLdlA+ai2nL//cenww8/On3961/KY1VUMu9sYL2rRIuACOAimD3llNPydhSTqkW7iLLPISqC69NmJU7yLF++/ftES47wrW99tdbwrzIUjl7jcTLm5JNPS294w5vzfnHPPXflfs2V4/Xtb38tB48RVEZFeQSw1157zU71E46w8q1vfWeedO+OO25Lu0KEujFGcVKgpmhP8bOf/Si3mYkTD2HrxHZ3p5NOOrVqH9uZfSFa9cQyxBUqDQmWi+0jjgH1ea4xYV+McV1XKxSTsEYrl7jPpz717/nEVzzn+HfSpOPzSbqodv7Rj76bTj/9rHyFzYknvi797ne/yicZaurevWeztwsCAACgPMFyC1YEPF27bg19agZKRVVyc4hL50eMGLlNFW30It0Vtk4atqLa90VFZX3tv/+BOXS74or/yKFXZf/WliTaoBStUBoq1lU819oukW8qUdEabVn23XdM+sIXPlt1e1zWX7QNqK+ogI1A9phjjs/tToqQLx4rLFr0cmpKcdLhssvet9OPE0FktPCIrwhbo0XABRe8MQe1cXKjsl9v0aYiRPuPmooTTNHLt/h/beKEQkywuT3F78d2UgSHdYkAMCbyDHECJiaEjN7Rzz8/O7eLKMTVFD/60dY+48OHj8xteaJffLTEqNx3y1xdEG0WHn/80XTNNb9Lu0K0b4irGb7xjSvqvE+0AIoq9tgW42RHbKtR+R1tM4q+yDu3L2zZpgq9jBdffCGf9Iv1V7QlqU0EytFTO8Y2Jm2sjwi6o9J46NB9qk60xWSPsU5CnASI16uoaI7nHuMXFc2V1cmxnQ8ZMiT3rgcAAKB1aVgpK7ssWI6QJ6o0K8VlxqHoL9scYlKqUHmpdIQKEyceusPwKqrZGiPwKUSP0ghoaqsoDDHBX1GRWakI6yp7QUdv2Ia01KgUFZwNbT/SVF54YW7uHV0ZVlauw9q2vZ0N2It2JTGRZBEkDhs2Io9XtHOp6bOf/UL65jd/kP+tKQK6qASNfyv76h500CF5wrCd6XvcXKJSNSpvI7Tu0+e1CvliXVW2WYnJOWuKgDbCxqOO2radSeVVClEhG+HehAkHb3O/YnsoHqu2E0Pbq8qPZY+J5ULfvn3rvN+cOc/l4DD6D5e9siDE/v3+91+WZsyYvtMnWcqICt7Y7oqgtC5ReV5shzEh3wEHHJQn52vovlCzFUeINhMNEftMhNcR7NYlJtWLthXXX/+HvIz1FYFyvBYUFfFRtVy5ruI53nbbTfnv33jj9Xl7qzlZYTxG9KKubG8EAABA66BiuYX7619vzlVfUekXl5D37z8wnXvu63MQVPRXLiM+xEe4U9kOIiqPQ4QiEcLWR1TjxeXx0U80KiwjWIlLv9u0qftcRQQvS5YsSaedFhM7rcq9Zcv8zUrnnPP6HJ5FWH3GGeekdevWpXvuubPW+0af0kMPPTKHG9GPOf5e/N0I3GLZY91GwBdBXlTsLV++c72hY9LEuOw7Jt2KfqmbNm2tYqzZh3ZX+utfb0of+ci/5ErKCI6ignTixMO2W+UYgdaBBx6cq4FjPZUNbyNginV+7LEnpAUL5uexuuCCi3JleVSdNqSNRLQuedvb3pnuuuv23Bc4Jjf7+c9/VO1+EexFlWmI0Cv62hYnPJ5++qla+8buKlGxGdtH7Lvr1q1NBx54UA5NI3wrxH4VPb6jj3CswzgBcs45F2zzWHGfu+++PU+616FD+zwpWvTxjXUSE+8VE6/Fv5MmnZDbNUS/9ggoI9yN6u8IaSMcLh4rgtSobI/WDxEoDxs2Mvfh/n//75/zY0UAGGPw6KMP5pNesQ+ecMIpebLH2M8KsQzxN6OCOZ5P7Fuxn8b/d1QRXVOciIq/GeMWE4ZGS4hKlS0b9tlneNprr72qTl4NHTo0j/26deurJiItrlbo1KljDj7DuHHj80mlxYsX54nzwqhRo/PJmP/9329sd/liMr64eiSOLTG5aVRwx/+LiT7L7AvxPGM9RmuhOF7Ecp100uvSgw/eV3q9VbrvvrvSu9/9/rwv1Dy+ReD8zndemo9VEaIXrweVJzfDRz/6LznYj/UTrU5ifZ166ll5Ir5iAtOa4r4xceiGDRvTvvuOjlMZ21xdcPjhR+XXk/jbAAAAtC6C5RYuPrBHlVeElIcddmT+QP/IIw/ly40b4tJLP5DDj0KES/EVykwOF0HjD37wnXTRRZekv/u7d+dJAh966L7cO/RNb3pLnb/zk598P/88qg8j4G7ohHRXXXXl33oh981B3Xe/+406ewbHJF+XXPL29Na3viv3rY6QJgK1CEyil2iEdu973z/+rfry2jwZYWW4UlY8nwi4TjnljBweRfgWl3/H4zeX6If6i1/8X2658L73fSjNmTMn/eEPv0tvecs7ar3/9df/MVe5RugeQWNDJ6378Y+/my688OLcizfWQ4RmV199ZYNC9gjmiv6+H/jAZWnp0qXpN7/5Rd4favbhffvb/77q+5hwcuTIffP/m3scIvCdOPHwHBpHCBzr9fe//3Wu9CzESZqf//zH6c1vfnv6t3+7PLdR+MMffp/Gjdt/m8eL9hlxwib62kblcoTVMclkVAhXVqx++9tfTWeeeV4ONuPkyYoVK9LUqVNyKFjbYx199HE5yI3ALwLn1x5rQ74yIO4TVdabNm3MIej3vvftaq1oIqiO+0bIGqFyHLfiucd2VbT6qK+YwLToeX7ZZZ/Y5ueVLUpivUaf35rHt5rb78UXv7XacTDadITi2BAiZJ8z5/lqk+nVJvrJx8m+aEkSVehPPz0lP8+akzLWZ1+IY1Ks2+iHXGwfN9zwx3TbbTennREtMGIsY/zjGFdzEsiY2C9OBsRXzX0u+m6HWN4I5I899vh8HI3JWZ99dmquRK7rZNwf/3hVuuSSv0vvec8H8n4X6yBOAhbixE8Ey9dd94eden4AAAA0jzadO3euPtsbtGARKsZXY/S7BahNtMP5l3/5TO4RPWXK5N1iJe2//wHpXe96Xz65UkyG2dyiN3ecML3iiv/cZuJZAAAAWj7BMq2KYBkAAAAAmp/J+wAAAAAAKEXFMgAAAAAApahYBgAAAACgFMEyAAAAAAClCJYBAAAAABAsAwAAAADQdFQsAwAAAABQSvtyd2dntW3bNnXu3DVt2rQxbdmyxQoFAAAAAEpr06ZNateufVq7dnXavHlz2tUEy7tYhMp9+/bf1X8WAAAAANgNLVmyKK1evXKX/13B8i4WlcphxYplaePGrf8HAAAAACijffv2qWfP3lV5464mWN7FivYXESpv2LBhV/95AAAAAGA3sqWZ2u2avA8AAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJTSvtzdAQAAANgTDL93aGrXv90u/7ubFm1Kc46dl/YUh0w6I3Xs2HmX/93169emx++7aZf/XXYfgmUAAAAAthGhcvtBrSc66ty5SzrttDPSgQcelHr16pXWr1+X5s6dk+666840ffoz+T6nn35WOvDACelrX7ui2u++6U2XpCOOOCr98pc/S1OmTN6lyx2hcsfOXVJL94EPfDiNHj2mzp8//PCDeR3WtHr1qjRz5sx07bXXpKVLl1b7Wdu2bdPnPvefqX37Dumzn/102rBhwza/P2zYiDyuI0aMTB06dEiLF7+SHnzw/nT33XemLVu2VC3b/Pkvpj/96Zqq3+vcuXN6//s/nLeF//3fb6ZFixbu8Dl+9avfrPNnN930l3TzzX9JH/rQR1K/fv3Sl770hbR27Zqqnx9xxJHpkkvenn74w++mZ56Zli655G2pT5++6bvf/Vb6t3/7bOrbd68dPnZr03qODgAAAABQi27duqUPf/hjqW3bdummm/6c5s17Id921FHHpH/4hw+mP/7x6hxE1ub88y9MRx55dPr1r3+xy0Pl1uRXv/p5DnbD8OEj0tve9o70ne98My1fvizftm7d2hwsX3/9n9KUKU9U/V4EuxHcv/Odl6ZvfOMr1R5z3Lj98wmBdu3apfHjD0xPPPF4tZ/Hbe9857tzaP3jH38/rV+/Po0atW8688xzUu/efdK11/6h1mWN5bz00n9Iffr0ycFufULlwlVX/TZNn/7sNrevXr06//u7312Z/umfPpnOPff8fN8Q29p5570+PfLIQzlUrimC7dg2w0EHHZzOPfeC9IUvXL7NY7c2gmUAAAAAWrXXv/6NqWPHTulrX/tSWrlyZdXts2fPSps2bcqh37RpU7f5vdNPPzMdf/yJOSx8/PFHd/FSty4rViyv+n/v3r3zv0uXLslflVaufDVXFRfi/zfffGN6+9vfmQPYVatWVf3ssMMOT7NmzUjdunVPEyceUi1Y7tixY7rkkremu+66I91ww7VVt0dl8ooVK3LgfN9996RXXllU7e9HSP2ud70nDRq0d/re976dFix4qdTzfPXVFdWWv6YIqW+55cYcbj/66MPpuedm5+1r06bN6Y9/fK1iulJlpXasn2K9tHZtOnfuvLVmnF0iDnIDBgxO+4ydmLp062WtA0ATefl3D1u3QIs08OIjmnsRAOpl0fcnp819tm1N0NTaLu2Q+v/DxHrfv2OH9unME45IU2fOSTPnzN/m5506dkhnHH94mv78vJS2pLT3gL7p9geeSPsO2ztNGDcyTZ42Kz0/7+VGfha7t359eqbjDj8w3Xz3o2n12nVVt7/+tEnpsadmpLkvVQ97Y50fdfB+6frbH0wbN27Kt7Vr1zaddeIR6enpc1LnTh3S6OGD01/ufDht3LQ5/3zooH7p0ANGp7/c+UjasHHjNsuwz9790+KlK/LfP+6wA9LyV1elJ6c/n444aFwa0LdXuvexqWnZitdOMtRHLP+Dk59JLy2qHpbX1KZNSicddXBq26ZN/puTDh2fHnri2TR/4eKq+8Syd+3cKd3z6NPVfnfY3v3ToQeOSX+85b60s9asWp5emD45LVw4P7d+2dXa7vK/CAAAAACNpE+v7qlt2zY5ZKzNuvUb0pq161Kv7l2rbhs2eEA6cOyIHCAKlZtWl84dc4j/8itLq0LlsHf/vqld27bppUWL00uLluZK40H9+1b9vHfP7mnl6rW1hsrhhZcWVQu1U5uUDhk/Og0ZuFd6ZvYLpUPlMqK182NPz0zdunZJR03cL81/eXG1UHlPoRUGAAAAAK1Wh/Zb4631dQSQYd2GDTm4DF27dE4T9983LV2+Mg3q1ycH0/F/GsfE8fumg/fft6qyNyboi0D59gdf67schu7dP6/3tes2/O1rfa5Snrdga4uI9u3apQ0b6h7TmobtPSC1adsmVy5H9fPc+QvThoogu76OOGhsDo5ruuH2B9Pmih8sf3VVWr5yVerTs3uaM7/+PZx3J4JlAAAAAFqtogo2Wl6sWr221vt06dQxvbJ6a0Vzh/bt0tMz5qRZc+ank44+OB16wJjcGmPz5q0tGNg502a9kF5a+ForiU6dOqSDxo1Mh44fne5+5Kmq9iXRrmLqzLlV91vwytLc3iLGJwLhqFSOMa1L+3Ztc9C7efPWsDdC5Qcen5bWrFufTjn64Pw3H316Zunlf/LZ59OiJa/1ky5UhspFS4vePbqlV1euTgeMGZ4WLl6WttSWSO/GtMIAAAAAoNVa9uqqHOj17dWj1p9379YldencKS1Z9mpVpemM51/MQeHjT89M3bt2TgeMHraLl3r3tW7d+rRy9Zqqr2hRMmvuS7kyvDBkYL9cyRyB7PmvOyZ/DR88ILfG2HvAXlXj1KVLp6qK9Epxv7NOOjI/TmHuiwvTK0tX5JMLEW7vM3hAbrdR1toay198VYrA+8BxI9Jz8xakB6c8m7p17ZzGjRya9jSCZQAAAABarQgCo1o0+vhGFWtNY0cMyX2W5y2oPqFcWLpiZQ49Rw3bO+3Vu+cuWuI9T7S0iCC5MHTvfmnxshXpr/c/kavF4yv+v2rN2twjuahg3rxpcxo9fO9tHm/kPoNyhXn0bS5UVgvHJI5Llr+aDt5/VOrQofEbNsTjbtq0OU2dMTetXLUmzXx+fho7ckjq0e21Pt57AsEyAAAAAK3aE8/Mzv8ef8SENHjAXqlHty65gjl6KUff3seenlFnv91oxxCB5qEHjM6VsDS+Lelv7SrapNS1c6cc4sekia+uWl3tKybk69+3V26VES1OYlzHjBiaK5tjMr+e3bumsSOHpvGjh+WWFeu304M5qtEjVD54v1GlljVad3Tr0nmbr1imEMF3bGNPPDM7bdy0dZt69rl5ac3a9emQ8Vt7S+8p9FgGAAAAYBttl7dvNX939Zp16Y4Hp6Rxo4amA8eOSJ07dchBcrRGiNtXrFxd5+9G5evjT89Kxx1+QDpg7PA05ZnndvIZUNPGTVv7Vw/cq0/q2aNrrmB+8eXF29zvhfmL0n6j9kmDB+6Vg+eYyC+qzWNco0o5LF+xKj005dm0YNFr1cq1eXXVmvTs7Hk5hJ7/8uI0f+G2f682cTKiNs+/+HKaOmNOOmi/UfnxFlT8/diGImiedOj4XDkfVfB7gjadO3fes7pKN7OOHTulAQMGp33GTkxduvVq7sUBgN3Wy797uLkXAaBWAy8+wpoBAHbamlXL0wvTJ6eFC+en9evXpV1NxTIAAAAAsNvaq0/PdOyhB9T586XLX013P/LULl2m3YFgGQAAAADYbS1bvjL99f7Jdf580+atrTooR7AMAAAAAOy2IjheuXpNcy/GbsdUlwAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUtqnPczo0ePSiBH7pltv/XOp3xk2bGTq3LlLWrNmVZoz57k0e/aMJl1OAAAAAICWao+qWO7YsWMaPnxUqd854ICD0/77T0irVq1MzzzzdFq2bGm+bfz4g5psOQEAAAAAWrI9omJ5n31GpIED9079+g1IHTp0SGvWrK7X73Xr1j2NHDk6LVjwYnr44furbt+4cWMaNWpMev75WWn16lVNuOQAAAAAAC3PblOxPHTo8HTeeRelLl26bvOz7t17pA4dOqbly5elDRvW1/sxBw8emtq0aZNmz55Z7fYXX3wh3z5o0JBGWXYAAAAAgNZkj6hYnjbtyar/H3PMialbt271+r0+ffZKW7ZsSUuXLq52e3wft/fq1avRlxUAAAAAoKXbI4LlhurUqXNav3592rx5c7XbI1TesGFD/vn2xGR/Xbp0qXZb27btmmRZAQAAAAB2FcHydkQ/5s2bN9X6s02bNuZ2GNszbNjING7c+Gq3xSSA06c/25CxAgAAAABoEVptsNy2bdvUsWOnqu87duyY/40q4qgoLqxdu6bBfyMqlSNcruvvr1+/bru/P3fuc2nRogU1fq9d6tKle4OXCQAAAACgubXaYDn6H0+adOI2tx9//CnVvr/uuqsa/DcilO7WrXuuTK4Mq+P7CLXXrVu3w9+vGWzH7wmWAQAAAIDWrNUGyytWLE8PPnhv1ff9+w9Io0aNSZMnP7LDwLe+li1bmvr3H5h69+6Tli5dUnV7r169c7j8yisLG+XvAAAAAAC0Jq02WN6wYX1auPClbVphRNi7Zs3qRvkb8+e/kMaM2S+NHDkmLV36YNXto0aNzZP3LVr0cqP8HQAAAACA1qTVBstNYcSIfdPGjRvSvHlzq6qi58yZnYYPH5V7Ki9Zsjj169c/DRy4d5oy5bG0aVPtE/sBAAAAAOzOBMsVJkw4JK1evaoqWA5PPvl4WrNmTRo2bEQaMGBQWrVqZXr88YfTvHlzmmO8AAAAAACa3W4TLEfQW5+w9/7776zzZ7VN9BeT9s2YMS1/AQAAAACQUlsrAQAAAACAMgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACU0r7c3WksTzxwa9qwYYMVCgBNpadVC7RM09Os5l4EAGA30KFDh9S3b79m+/sqlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoJT25e5OYzn46FNTl269rFAAaAYv/+5h6x3YrQy8+IjmXgQAYBdbs2p5emH65NRcVCwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAIJlAAAAAACajoplAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlNK+3N33PO3atUsdOnSs9Wdr167Z5csDAAAAANDc9phgefTocWnYsJGpc+cuac2aVWnOnOfS7Nkzdvh7Y8bsn8aM2a/Wn91007Vp/fr1TbC0AAAAAAAt1x4RLB9wwMFp1KgxaeHCBen552enXr165dsiZJ46dcp2f7dbt+5p6dLFafr0Z7b52YYNG5pwqQEAAAAAWqbdPliOYHjkyNFpwYIX08MP3191+8aNG3PY/Pzzs9Lq1au28/vd0uLFr6SFC1/aRUsMAAAAANCy7TaT9w0dOjydd95FqUuXrtVuHzx4aGrTpk2aPXtmtdtffPGFfPugQUN2GEyvXLki/79jx475dwAAAAAA9mS7fcVynz57pS1btuR2FpXi+7g92mLUpVOnTql9+w5pwIBBab/9JuRgedOmTWnBgvnpqace118ZAAAAANgj7fbBcqdOnXMAvHnz5mq3R6gcPZLj59urVg69e/dNM2ZMS2vXrkl77dU/DR8+KvXs2TPdffdfc9Bcl+jh3KVLl2q3tW3bbqefEwAAAABAc9rtg+UOHTqkzZtrD383bdq43dYWmzZtzj2YZ82aXtWHef78eWnlylfTgQdOzAHz7Nkz6vz9YcNGpnHjxle7bdWqlWn69Gcb/HwAAAAAAJpbqw2W27Ztmzp27FT1fbSpCFGBHNXIhahUjnC5rsdYv35dnX9j+fKl6cknl25ze4TN48cflKuXtxcsz537XFq0aEGNv9kudemytRIaAAAAAKA1at+aeydPmnTiNrcff/wp1b5ftOjl3NIiKpMrA+f4PoLpdevqDpbrsrWNxvrUrt3221pE64z4qhR/U7AMAAAAALRmrTZYXrFieXrwwXurvu/ff0AaNWpMmjz5kWphcd++e6X+/Qem3r37pKVLl1Td3qtX7xwuv/LKwjr/xiGHHJk6d+6c7r//rmq3R3V0VEavWvVioz8vAAAAAICWrtUGy1ExvHDhS9u0woigeM2a1VW3r127Oo0Zs18aOXJMWrr0warbR40amyfvi4rm7f2NoUOHpYED904vv/za3xo7dnxVv2UAAAAAgD1Nqw2Wy1Q2z5kzO0+0Fz2VlyxZnPr165/D4ilTHkubNr02sd+IEfumjRs3pHnz5ubvY9K+IUP2SYcddnR+jHXr1qa+ffvl3437LF68qBmfGQAAAABA89jtg+Xw5JOPpzVr1qRhw0akAQMGpVWrVqbHH384zZs3p9r9Jkw4JK1evaoqWI7K57vuujWNG3dA2nvvIbk/cvz8mWeeSjNnPttMzwYAAAAAoHntNsFyhMQ1g+LKyfZmzJiWv7bnuuuu2ua2CKSjbzMAAAAAAFu1/du/AAAAAABQL4JlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKaV/u7jSWJx64NW3YsMEKBYDm0NNqB3Yv09Os5l4EAGAX69ChQ+rbt19qLiqWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACglPbl7k5jOfjoU1OXbr2sUABoZV7+3cPNvQgAjWrgxUdYowDQCq1ZtTy9MH1ys/19FcsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKe1TI/vHf/z4Tv3+li1b0ne+8/VGWx4AAAAAAFp4sDx69Nj0yiuL0vLly0r/bq9evVO/fv0be5EAAAAAAGjJwXK4445b0z333Fn6944//uT0xje+uSkWCQAAAACAltpj+aGH7k8vv7ygQb+7YMH8/PsAAAAAAOxBFcu//vXPGvy7M2Y8m78AAAAAANjDWmEU2rZtl0499Yx0wAETUrdu3VPbtrUXSF9++b815WIAAAAAANBaguWLLnpzmjTphLR06ZK0bNnSpvxTAAAAAADsDsHyIYccnp588on04x9/tyn/DAAAAAAArXnyvkrt27dPzz03qyn/BAAAAAAAu1OwPHPmjLTffuOb8k8AAAAAALA7tcK4+urfpMsu+0R6z3s+mCZPfiStWLEibdmyZZv7zZjxbFMuBgAAAAAArSVY7tOnb+rQoUM68MCD8lddPvrR9zflYgAAAAAA0FqC5Te84eLUrl27dOON16elS5fUWq0MAAAAAEDr0qTBcr9+A9Ltt9+Sg2UAAAAAAHYPTRosL1gwP3Xq1Cm1BKNHj0vDho1MnTt3SWvWrEpz5jyXZs+e0eS/CwAAAACwu2nblA/+pz9dnY48clIaM2Zcak4HHHBw2n//CWnVqpXpmWeeTsuWLc23jR9/UJP+LgAAAADA7qhJK5bPPPPctGHD+vShD30sB7LxtXnz5m3u981vfqXJlqFbt+5p5MjRacGCF9PDD99fdfvGjRvTqFFj0vPPz0qrV69q9N8FAAAAANhdNWnF8l579UubNm2qmrivV6/eqU+fvtt8NYahQ4en8867KHXp0rXa7YMHD01t2rRJs2fPrHb7iy++kG8fNGhInY+5M78LAAAAALC7atKK5c9//tOpufXps1cOtZcuXVzt9vh+a9jdq0l+FwAAAABgd9XoFctnn31+GjZseIN+d9iwEfn3G1OnTp3T+vXrt2nBEcHwhg0b8s+b4ndDTPZXszq7R4+eO/mMAAAAAAB2s4rl008/O61YsTzNnTun9O8OHz4i//6f/3xtoy1Phw4d0ubNm2r92aZNG3NLi6b43TBs2Mg0btz4arfFJIDTpz9br2UHAAAAANhjWmEcccTRufq4rIEDB9X7vm3btk0dO3aq+r5jx47536gijoriQlQbR0Bc12OsX7+uzr+xM78b5s59Li1atKDG77VLXbp03+7vAQAAAADsUcFyTNTXs2ev/NXQ36+P6H88adKJ29x+/PGnVPt+0aKXU7du3XN1cWXgHN9HML1uXd3h8Nq1axr8u8Xvx1el+D3BMgAAAADQmrVvrRP2RbuNBx+8t+r7/v0HpFGjxqTJkx+pFvj27btX6t9/YOrdu0+10LpXr945IH7llYV1/o1ly5Y2+HcBAAAAAHZXjT55366yYcP6tHDhS1Vfy5cvy7dH2Ft5+/z5L+TbR44cU+33R40amyfgi4rmuuzM7wIAAAAA7K6apMdySxKVzXPmzE7Dh4/KfZGXLFmc+vXrnwYO3DtNmfJY2rTptcn5RozYN23cuCHNmze39O8CAAAAAOwpdvtgOTz55ONpzZo1eULBAQMGpVWrVqbHH384zZs3p9r9Jkw4JK1evaoqWC7zuwAAAAAAe4o2nTt3fm1WOppcTN43YMDgtM/YialLt4ZNcAgANJ+Xf/ew1Q/sVgZefERzLwIA0ABrVi1PL0yfnBYunJ/Wr39tzrldpdX2WAYAAAAAoHkIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgJYTLO+33/gd3uf4409qykUAAAAAAKA1Bcvvf/9l6a1vfWfq0qXLNj8bMGBg+shH/jm98Y2XNOUiAAAAAADQyNqnJvTwww+kI488JlcuX3XVlWnKlMmpTZs26dRTz0xnnHFOateuXbrnnjubchEAAAAAAGhNwfKvfvXT9NBD96eLL35beve735+efHJy2muvfmnw4KHppZdeTL/5zS/TnDnPNeUiAAAAAADQ2ibvmzHj2fTlL/9XWrDgpTRhwsQcKj/22MPpiiv+U6gMAAAAANAKNWnFchg5ct/05je/PQ0atHeaP//F1LNnz3TIIYen9evXp2uvvSatXr2qqRcBAAAAAIDWEiy/5S3vyD2WN23alK6//g/ptttuzhP5xYR9Rx99bDrooEPy7ffdd3dTLgYAAAAAAK2lFcZRR01Kzz03K33pS5enW2+9KW3ZsiWtXr06/eIX/5e+//1vp/Xr1+X+ywAAAAAAtB5NWrH8+9//Ot177121/mzatKfSF77wuXT++W9oykUAAAAAAKA1VSzXFSoXomL5qquubMpFAAAAAACgNQXLAAAAAADsfgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAACAYBkAAAAAgKajYhkAAAAAgFIEywAAAAAAlCJYBgAAAACglPbl7k5jeeKBW9OGDRusUABobXo29wIANK7paZZVCgCtUIcOHVLfvv2a7e+rWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFLal7s7jeXgo09NXbr1skIBYA/x8u8ebu5FAGhUAy8+whoFgGa0ZtXy9ML0yc3291UsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBS2pe7+56nU6fOqU2bNtvcvnHjxrRx44ZmWSYAAAAAgOa0RwTLPXr0SuPHT0h9+vRNW7aktGTJojR16pNp1aqV2/29tm3bptNOO6fWYPm552amp56a3IRLDQAAAADQMu32wXLXrt3SpEknppS2pOefn502bdqUhg0bkY477pR01123pDVr1mznd7vnUDkC5FWrVlX72erV1b8HAAAAANhT7PbB8rhx41OHDh3S3XfflpYvX5ZvmzdvTjr55DPSuHEHpMmTH6nzd7t165b/feGF53PrCwAAAAAAdvPJ+6LaeNCgIWnx4leqQuWwZs3qtGTJ4jRo0ODt/n63bj3S2rVrcqjcrl271KFDx12w1AAAAAAALdtuXbHcs2fv1L59+7R06eJtfha39e8/ILfKqKutRVQsR+uMaKXRt2+/HFRHX+Znnnk6zZ//wi54BgAAAAAALc9uHSx37tw5/xtVxzWtX78u/9upU+ftBMvd81dUOz/22IO5YnnUqNHpsMOOSu3atU0vvDBnB3+/S+rSpUu129q2bbcTzwgAAAAAoPntNsFy27Ztc0hcqX37DvnfqDquqeiZHFXIdYl2GS+//FJ67rmZVbfNmzc3nXzy6Wn8+IPy/7ds2VLn7w8bNjL3eK4UFc/Tpz9b4pkBAAAAALQsu02w3KfPXrllRaWpU6fkf6M/cm1BdGXlcm2mT5+6zW2bNm3Mlcpjx+6fevbsVa13c01z5z6XFi1aUOPvtktdunSvxzMCAAAAAGiZdptgecWK5enBB++tdtuGDevzv506daqzTca6dXUHy3UpWmvUFljXvF/NNhwdO3YSLAMAAAAArdpuEyxHiLxw4UvVbovgd/Pmzal3777b3L9Xrz5pxYplVeFzTTFZ34EHTkwzZz6T5s+fV+1nPXr0rGprAQAAAACwp9naD2I3Fb2Vo0dyv34DqsLgEP/v339geumlF+v83VWrXs33GzlydFXbjNClS9e0zz7D0+LFixpU7QwAAAAA0NrtNhXLdZk27ckcIh999AlpzpzZebK+ESNGpTVrVqdZs2ZU3a937z65svmVVxamlStfzaHx7Nkz0ujR49KkSSflEDpaagwdOiym/EtPPfVEsz4vAAAAAIDmstsHy9Gu4t5770jjx09I++47Nm3evCktXPhymjZtSp6IrzBgwN5p3Ljx6fHHH87BchFKv/rq8jRy5Jg8WV+01Viy5JU8qV+00QAAAAAA2BPt9sFyiBD4gQfu3u59IiyOr5rmzZubvwAAAAAA2AN6LAMAAAAA0PgEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlNK+3N1pLE88cGvasGGDFQoAe4qezb0AAI1reppllQJAM+rQoUPq27dfs/19FcsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFBK+3J3p7EcfPSpqUu3XlYoALBTXv7dw9Yg0OIMvPiI5l4EANjtrVm1PL0wfXKz/X0VywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAACAYBkAAAAAgKajYhkAAAAAgFIEywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAACilfdqDtGnTJp1xxvlp6tQn0ty5z9frd3r06JXGj5+Q+vTpm7ZsSWnJkkVp6tQn06pVK5t8eQEAAAAAWqI9qmJ55MgxqUOHDvW+f9eu3dKkSSem3r37pOefn51mz56RevbsnY477pTUpUuXJl1WAAAAAICWarevWO7cuUsaM2a/1KfPXqlXr96lfnfcuPE5iL777tvS8uXL8m3z5s1JJ598Rho37oA0efIjTbTUAAAAAAAt125fsdy+ffvUvXvPtGHDhqpwuL5tMwYNGpIWL36l2u+tWbM6LVmyOA0aNLiJlhgAAAAAoGXb7YPllStfTffff2f+evrpJ+r9e9HyIkLppUsXb/OzuK1Dh465VQYAAAAAwJ5mt2+F0VCdO3fO/65du2abn61fvy7/26lT57R69artPEaXbXoxt23brtGXFQAAAABgV9ptguW2bdvmoLdShMJbtmxp0OO1b791kr9NmzZt87ONGzdWtcvYnmHDRuY+zZVWrVqZpk9/tkHLBAAAAADQEuw2wXJMzjdp0onVbrv11j/nnsgNsXnz5vxvu3btag2xKyuX6zJ37nNp0aIFNX63XerSpXuDlgkAAAAAoCXYbYLlFSuWpwcfvLfabevWrW3w4xUtMDp16lRnm4x169bt8DFqttLo2LGTYBkAAAAAaNV2m2B5w4b1aeHClxrt8VasWJarlnv37rvNz3r16pN/Hn8TAAAAAGBPs7WnA9uI3sovv/xS6tdvQOrRo2fV7fH//v0HppdeetFaAwAAAAD2SLtNxfLO6t27T65OfuWVhWnlylfzbdOmPZlD5KOPPiHNmTM7T9Y3YsSo3Ld51qwZzb3IAAAAAADNQsXy3wwYsHeaMOGQaq0vVq1ame6994706qvL0777js2h8sKFL6f77rsjbdq0sXlGDAAAAACgme1RFcuLFy9K1113Va0/mz59av6qKXopP/DA3btg6QAAAAAAWgcVywAAAAAAlCJYBgAAAACgFMEyAAAAAAClCJYBAAAAAChFsAwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFCKYBkAAAAAgFIEywAAAAAAlCJYBgAAAACglPbl7k5jeeKBW9OGDRusUABg5/S0AoGWZ3qa1dyLAAC7vQ4dOqS+ffs1299XsQwAAAAAQCmCZQAAAAAAShEsAwAAAABQimAZAAAAAIBSBMsAAAAAAJQiWAYAAAAAoBTBMgAAAAAApQiWAQAAAAAoRbAMAAAAAEApgmUAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKCU9uXuzs5q06bN1hXf3qoHAAAAABqmyBeLvHFXk27uYu3abV3lPXv23tV/GgAAAADYTfPGXa1N586dt+zyv7oHa9u2bercuWvatGlj2rJlS+rRo2c6+ODD0hNPPJpefXVFcy8eO2C8Whfj1boYr9bFeLU+xqx1MV6ti/FqXYxX62K8Wh9j1roYr9Y9Xm3atMmh8tq1q9PmzZt3+fKoWN7FYpBXr15Z8f2m1K1b9/zv+vXrdvXiUJLxal2MV+tivFoX49X6GLPWxXi1LsardTFerYvxan2MWetivFqXzS0sRzR5HwAAAAAApQiWAQAAAAAoRbAMAAAAAEApguVmtmbNmvTss1Pzv7R8xqt1MV6ti/FqXYxX62PMWhfj1boYr9bFeLUuxqv1MWati/FqXda0sByxTefOnbc090IAAAAAANB6qFgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKaV/u7kBo165d6tChY60rY+3aNVYSAAAA0GJ16tQ5tWnTZpvbN27cmDZu3NAsy0TrI1jehUaPHpdGjNg33Xrrn7cdiPbt09ix49PAgXunLl26pLVr16aXX34pTZ8+LW3YsH6bxxk2bGTq3LlLWrNmVZoz57k0e/aMXfhM9gzbG68xY/ZPY8bsV+vv3XTTtWn9+tfGzHi1jDGLkwGxjw0ePDS/gMYL5aJFL6dp057a5mSAMdu14pi3//4TUv/+A/M4rVz5aj6mzZs3d5v7GpuWYe+9h6R99x2XevTombZs2ZKWLVuSpk17Mi1fvqza/YxX8+vZs1fab78DU58+e6V27dqmNWvWpAUL5qdZs56t9loVjFfL0KNHrzR+/ITUp0/ftGVLSkuWLEpTpz6ZVq1a2dyLtkeLD95x3Ntnn+GpS5euacOGDenVV1ek2bOnp4ULF1Tdz/i1LB07dkr77XdAGjBgUP5/vOeL9xfTp0+tuo8xazniM+7IkaNTt27d8z62aNGC/F593bq1VfcxXs1/LDzjjPPT1KlPpLlzn6/2s379BuTPyL169U5t2259T//cczPTCy9Uv58xbBlj1rZt23TaaefUGizHuD311OSq741ZS9rH9k89e/aMe6aVK1ekGTOeqfY+pDnGS7C8i3Ts2DENHz6qzg3nmGNOzB/Q46C7evWqvCFEQNa//4B01123pc2bN+f7HnDAwWnUqDF5w3n++dmpV69e+bYImadOnbKrns4ePV4h3uwsXbo4TZ/+zDY/izdBBePVcsbsyCOPS3vt1S+9+OILOfzq0aNHGjp0eA5b7rjjZvtYM+nQoUOaNOmkHPbPnftc/sAXH/4OOeTI1L59h/T887Oq7mt/ahn22WdEmjjx8PTKK4vyB/MYu/ggeNRRx6c77ripKqw0Xs0vwq9Jk07MbzznzZuT1qxZnXr37psD5DiRc9ddt1bd13i1DF27dvvbmG3J7/M2bdqUhg0bkY477pR011235BMDNI/x4w/K78EXL16Ug8n4QB4h81FHHZceeeT+9NJLLxq/FiYKd4455oR8Ajs+nK9fvy716zcwjRs3Pv88XsPscy1H7F/xWrR06ZI0Y8a0fCIgjn99+/bLr1dRQWm8mt/IkWPy+/eaIvA6+ujjc5Yxe/bMXHgwZMg++T1j5B3xPj8Yw5YzZl27ds9jEwHyqlWrqv0sxvG1+3lv0hLGa++9h6TDDz8mZxlRhNWmTdu8j8X7kMcff6iqKKs5xkuwvAs+gEcVchxoY+OID3U1xc969+6Tnn56Sq56KMTZhDjDHh/+ono5wsw4g7tgwYvp4Yfvr7pfvMjGC3EEMJUHAJpmvEK3bt3S4sWvpIULX6rzsYxXy9rH+vXrn559dmq1CpVly5amgw46NJ/EiYOzMdv1Ro0am1/8Hnjg7lxBHmbOfDYdccSkXGUZYVgc44xNy/mQHuFKnKB57LEHq26P16Ujjzw2DRiwdx4z49UyxLEt2jbFCerly5dW3b5u3cT8fiIqiuLNqfFqOSLwiteyu+++reoKgNinTj75jDRu3AFp8uRHmnsR90gxJrE/RbX/ww/fV3V7vPc+9dSz84nqCJaNX8v7cN69e48cSkZ1eeV7jCFDhub3hMas5by/iGNcnLi57747q26P9xvHHXdy2nffsfl9vPFqHlHEFpXIUZAT7x1qE2MTV1rfc89fq4oMIts48cTT0v77H5gL6CJsNoYtZ8wi0wgxNvF5qy7GrGWM1777js1Xb9x77+05LA6RYbzudWfm17siWG6O8TJ5XxOLNzPxoS4GtGZLi8oX0hBtLSoV38cBOMQl/HFGKc4AVooX3Lh90KAhTfQs9hz1Ga8QH8LjsoOiUra2y0eMV8sZs7326p//rXkZVuw7IQ7gwZjtegMGDMwnxIpQ+bWxmZtfEOPEmrFpOeJMeRzznn326fx9jFG0L1myZHG68cZr85uWYF9qOeLEdGWoHIpLir2/aFmK93Jx4rqyrUycMI19bNCgwc26fHuyuDIjWv4Ux7hCVMBuvapwi/FrgaJC66WX5uVQOfaveP0KcXLg9ttvNmYtSFQlx2fimpd9x363atWr+djoGNl8Ymy6d++Zr8yt2fYsxNjE56l4z1HZZivCr7gtqs/jM5sxbDljFrp165GvFo1Qua45pIxZyxmv9u3bp3Xr1lWFyiHae269Yn5Ls46XiuUmFj0nC9HuojgrVOmVVxbmHTp6jMab03jzU/REjKrl+HmIg3V8CIwWDJXi+7g92mLQ9OPVqVOnfIl+XK6/334T8pvU2LmjiuWppx6vejE1Xi1nzFavXpk/DNbspVxcYtK27dYTA8Zs14t9qbYTAsULZs+evXMVmLFpGfr27Z/fvESVeVQox4eEeP2J16kpUx6rumrGeLW842Mc7+IDQ/Rai6uc4lLjFSuW558Zr5YhjnfxoaHm+7wQt0V7tNj3XJ2260Wf0HvvvaNaZVG8H4yey/FhPMIw49fyWgHF/hJjc/DBh6UhQ4blsYoTa1G1HFVexqzlKN6T1/WesFevPsarmY+B999/Z1XBztbL7F8T+1YUhdTs81o5thF42edazpiF+Nwc+1f8LE7uxBhF/vTMM0+n+fO3FmAZs5YzXvPmzc2ZYVw9WhTMxdVUUfQ4ZcqjzTpeguUWID6kP/jgvXnjiQ/qhdjJ401s0V85qiUitCy+L8SH+niM+DlNL3bcEH0qo/9XhJWx80d/32iifvfdf81jZ7xajhdemJO/aooDcyjeBBmzXS/evMT+E286K/uTx5ubUFQXGZuWoXv3rb3Y4jLiOFkTl6VGuBw9e4899qR055235Ncp49XyxKVv0f6i+OAeJ0ILxqtl6Nx56/u4midBi8rYYqwEy80rXpdisqNCfLiL9xFRcBCMX8t6vx4n0uKY9/TTT+TPUNEXO/r4RhBWnFwzZs2vmFCqqHqt3N+iqjLEfETBeLU8UfH6+OMPb3N7XNI/ePA+uVoy9rdoXxiMYcs5TsZXVLZGi7soQBg1anQ67LCj8oTP8fnZe5OWY+bMZ/NxMFpixFchrsyZM2drD/PmGi/BcgsQVQ9HHjkp/z8+pBcVy7FTH3XUsemOO+KD+rocvGze/FrZe6VNmzbW2o6Bxrdp0+bcU2/WrOlVO+T8+fPyWaYDD5yYA+aogjBeLbuKJapXos1CfBgsLrszZrteTCgQbzIPO+zofPyLD3/x/ciR+1a7VN/YtAwxDnEWfPr0aVXtMIrWTRMnHpGGD983n3AzXi1zX1uy5JVcyRCvU0cffULuvRYf5o1Xy7mCI1Re4lgoeh96r9f84iToQw/dm9+/R2AScz3EmMUlpsH4tQyVEx9V9nyNqsro+Tp69H75SptgzJpfzHsSV9LECdAIIaPXcoQfcQVvTJRZyXi1DvFeY/z4rUU8TzyxtZrS61zLEq9bcSLnuedmVquKPfnk03NVbPzfmLUc48aNz3M6LFq0MBf4xHvCOFm6995D88/is3RzjZdguSErLbdB2Nr3c3sibKyPsWP3z0FX5eRVcdYhStVjhsc4GxGXs8ZZ9tpmhwzxglucgaBpxyt6VT75ZPV+lSHC5jgAR/VlBMvGq+WMWeV+EpWV8RWzqM6Y8UwOx4rw0pg1zxjGTMTxwSEmZyle9J55Zmo64ICDqo5rxqZljFfsN6GY2bsQbzwPOuiw3GYhGK+Wd4yMeQHiK26L9xpxlVRcPldU8Xl/0fyKK9KikrKmIljxXq/5xXuGoqJyzpzZ6ZhjTkjDho1Mr7yyKN9m/FqGYp+JVnWVPV9jP4s5NuJDeFHZZcxahkceuT8dfvjReWLtQgTM8boVczcUQYnxatmibcmECYfk94RRpRwThRVzPXida1kqJ7WvLFiMSuXIqKLY0Zi1DF26dMknRKNI5IEH7qp21dTWCU7HpVmztmZQzXGcFCw3QNeuXXN13Y7Mn39VvR4vLvmJ6oeak1dFJWUELLFDF+XscalCnGEogrCwdTKKTrmRN00/XnXZ2pJkfdVObLxa1phFL6G4fD/2p+gH+9RTT6RXX916CWTBmDXPGMZZ8nhRjDeiRdVKEVC++uqrxqYFjVdMolM5+VvN41/bto5/LWm8evSYlo9zNU/CxQf1eH8RbUyCY1/LUFy2GL17ayoCMO/1mke/fgNy4UC8XtX8QBbv1+Pnxq9lKdpr1fYBungNK17T7HMtQ+xD99xze35tiqKrqFyOK0Kj1VZcXWMfa/ki+IqTNnESYOrUKbnYqjK3MIatQzFOkWsYs5ahd+++ORiOuYdqKuYjimNnc42XYLkBolXFbbf9pRGHYetM0nX9rDjrEGFLXLrfu3effKlQZe+i+P1ikj+adrwOOeTIvFPef/9rZ4qKHmBxydaqVVt3duPVcsasXbv26eijj8+XrT7xxCPbzDhdMGa7fgyHDh2WPzxE9XiEXYXoVbl1UritJ9yMTcsYrzFj9s9vbKLfYeWJmWiPESc4Y6LMYLxaxngdd9wpuWVTzWA53jPEm9NikiTj1TKsWLEsv+eLfaymOPEWP69tYiuaXnxYi+qtuJqw5uRURUFBVHkZv5Z1nKzstVypuG316tXGrIWIz1bRTiv2r9jPIlAOcTVNHP/i6gDHyJYtroLaf/8D0+LFr6THHnsgrV1bvQghGMOWI+aziTaeM2c+s837xKKfeZzQiUIEr23Nb8vfTtDUlhsW525inFaterVZxqt6wyLqPajxQW1HX2V628SH8uiXUmnQoMH5cteikrmYmXPkyDHV7jdq1NhaK55pmvGKHTEqU4rJBwpjx47/2zhtPTAbr5YzZsOGjcgfImKyqrpCZWPWPGMYL3DRBqN7961vYIrq8hizOPtaVBzZn1rGeBVnyaOdTKV4XYo3Oo5/LWu84oRznIyu3L+KD38RLC9c6P1FSxIVXtFiId5jFB/qQvw/Cgtqq1Jh14g2F7Hf1XyvHu/fo8dyfPiOS76NX8sR1a5RkRzv1yv3p5icKk5qx+XEcR9j1nLmsImTNzHZYs2JZ+P1KlpwOUa2bPFZOE7oPPjgPbWGysEYthwRQMaxMfqaV/Yxj4Kf6NsbBT9R2WrMWoalS5f8bQLaEdXGKz5/DRkyNO9zUfTTXOOlYrkFiEq9CJEnTjw89evXPx+QIwSLN6/Rj6joZRlvWONsbTTCj40pAum4f7xhisknamvQTeOLSfuGDNknX4Yc4xGX08UZvxiH6DNaVF0ar5Yjql9j/4jK5QhUaopLRqIHnzHb9aI3+daJxI7P+1N8SI9QefPmLbm3fMHYtAwLF76U5wCID+VxhUYEl1HJF9/H8a+4csZ4tZzeefH+4thjT8wn1eKS8GgzE5N8RFAWk1gF49VyxHEv3vjH5IpxTIwPDCNGjMoBWPTOo3lEf/I4xsWH7aigjIlz4kq14lj48MP3Gb8W6MknJ6dJk05IkyadlFtuReVdvIeP94Pxs2CfaxmicCc+80a/8pSOSsuWLUv9+w/Ix8Nop1BUoBuvlimqI+PS+6g2j+NkbRYseDGHX8awZYjQOPatKBaJY2QEjjGG8bqWUpvcNrJgzJrfunVrc3V5nMA54YRT83hF0Dx48JDUo0ev9NhjD1VVNTfHeLXp3Lnza01vaFLHHHNi6tatW7r11j9v87N4Uxr9iAYM2Dvv0LGjx8H3mWeeThs3bnhtwNq0yb2LInjZ2nZhZQ46Y1ZIdt14RfP0OIMeZ4K2Xv69Kn9Anznz2W36Xxuv5h+zmP276FVemwhY7r//zvx/Y7brRTuf/fefkP+NNzJRRRQviMVlkAVj0zLEOMQEEfE6VPRAjMBlxoxpjn8tUATJ8XoVH/rikv2trTFeyCe1i1Zbwf7VcvTs2TuNHz8h98vbvHlTriyfNm1KnRVg7BpR1BEVlYMH75OPfRFSRogS+1L8a/xapnj/F1dGRY/saDEYVV/xHmP58mUV97HPtQRbJ9neL1ffbX1/sSaHIhF+VTJezSv2pZgAuLK94N57D0mHH37Mdn/vvvvurCrAMobNP2aFCJLjysMoFIn3hfE5LAoTKo+RxqzljNfgwfvkKvNevbZmGzFO8T6kZpuuXb2PCZYBAAAAAChFj2UAAAAAAEoRLAMAAAAAUIpgGQAAAACAUgTLAAAAAACUIlgGAAAAAKAUwTIAAAAAAKUIlgEAAAAAKEWwDAAAAABAKYJlAAAAAABKESwDAAAAAFBK+3J3BwBonU455fR07LEnpN69+6Tly5el+++/J916641py5YtpR/rs5/9Qtprr375/zfddEO64YY/1Xnft73tXWn06LHp85//9E4tf12PfdRRk/L/Z8x4Nn3rW19t0OP07btX+ud//rf0xS9+Pq1YsTzfNnjwkHT++W9MI0aMyuto1qwZ6dprr04LF76cdgff/OYP0sMPP5B+8Yv/a5LfmzBhYho6dJ90443XN2gbK2vEiJHp4x//13T55f+WXnllUbWftWnTJk2adHw69tgTU79+/dPatWvSnDnP5e12wYKXtlnuM888Jw0YMCitWbM6TZkyOV1//R/S2rVrm2zZi+34ox99f9q8eXNqac4667z8Vdu63dXiWHLZZZ9I3/zmV9LMmdNTS/DJT/6/dN11f0hTpz7V3IsCAOxiKpYBgN3eeeddmM499/U5JPvNb36RJk9+NJ155rk5OG2o55+fnX7/+yvTU09NSc0lAs5Yhp0Ne9/whjenRx55qCpUjvDxwx/+RBo+fES655470h133JqGDBmaPvaxT6U+ffqm3UGst4ceur/JHv+ggybmMDJC3aYWf+PUU8+q8+dveMPF6c1vfntaunRJPhHy2GMPpzFj9stB9MCBg6rud/DBh6ZLL31/at++Q9X9jjrqmPSBD3wktW27535sePrpJ/P2snLlyuZelBbpxhtvSBdd9JbUoUOH5l4UAGAXU7EMAOzWevbslauVb775z+kvf7mu6vbVq1elc855fbrzzlvTsmXLSj/uyy8vSHfffXtqTtOnP5O/Jk48tMGPMWbMuHTAARPSf/zHZ6pui0C0S5cu6atf/UJ64YW5+bYIYT/zmf9IZ599fvrVr36aWqv27dunjRs3NvvYNVb16tFHH5vHsK7Av1OnTum4407KJ0B++MPvVN0eJ1k++tF/Scccc1z64x+vysHx619/Ud4Xvva1L6Z169bl+82Z83z6+79/Xzr88KOaNIhvyebOfT5/Ubsnnngsn7w79dQz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" alt="Outcome map: theta0 from -180 to 180 degrees on the x axis, cart offset on the y axis; a green band of successes roughly 32 to 48 degrees wide around upright, everything else a track exit" style="max-width:100%;height:auto;display:block;margin-top:18px;border:1px solid var(--line)">
+    <p style="margin-top:12px;color:var(--mute);font-size:14.5px">Success requires |θ| &lt; 5° and |x| &lt; 0.1 m held for the last 2 s of a 10 s run, |x| ≤ 2.4 m throughout, and no fault flag. Peak force sits at 14 N mean with 0.4% of ticks saturated, so the 20 N clamp is not the binding constraint; the rail is.</p>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">The five reviews · internal notes, summarized here</div>
+    <h2>Each reviewer's verdict</h2>
+    <div class="reports">
+
+      <div class="card"><div class="k"><span>01 · Control theory</span><span>11 findings</span></div>
+        <h3>One spec failure, several stories that fall apart under a controls reviewer.</h3>
+        <ul>
+          <li><b>Basin is 44°</b>, not "any". Swing-up plus LQR catch is 2–3 h.</li>
+          <li><b>±10% sweep proves nothing</b>: LQR survives all 27 corners easily. What breaks is the swing-up switch (+10% length failed from 30°) and Coulomb friction (4.5° hunting).</li>
+          <li><b>θ is never wrapped</b>: θ=2π reads as a 360° error.</li>
+          <li><b>Success check hides SDC</b>: a flip that zeroes K_x passed because only θ is checked. Require |x| → 0 too.</li>
+          <li>Never build with <code>-ffast-math</code>; never refactor <code>clampf</code> to <code>std::min/max</code> (NaN order-dependent).</li>
+        </ul>
+        <div class="file">internal review notes</div>
+      </div>
+
+      <div class="card"><div class="k"><span>02 · Memory protection</span><span>18 findings</span></div>
+        <h3>Protects what is easiest to demo, which is what hardware EDAC already covers.</h3>
+        <ul>
+          <li><b>Register promotion at -O2</b>, verified. Volatile storage + decode-to-locals.</li>
+          <li><b>One blob for gains and state re-encodes corruption as valid.</b> Params get a fixed reference CRC never recomputed; State re-encoded only after invariants pass.</li>
+          <li><b>Golden copy in RAM</b> has an 8.5%/year chance of a latent flip at LEO rates if unscrubbed. Use <code>params_default()</code> from literals and pin its CRC in a test.</li>
+          <li><b>Sensor path bypasses every layer</b>: add analytic redundancy (|Δθ − θ̇·dt| ≤ tol).</li>
+          <li>Includes a 6-step "if you only have 2 hours" order.</li>
+        </ul>
+        <div class="file">internal review notes</div>
+      </div>
+
+      <div class="card"><div class="k"><span>03 · Fault-injection method</span><span>13 findings</span></div>
+        <h3>A functional verification dressed as a reliability measurement.</h3>
+        <ul>
+          <li><b>Taxonomy is neither exclusive nor exhaustive.</b> Log a mechanism column and a plant-outcome column; derive the five labels.</li>
+          <li><b>Half the candidate bits are dead</b> (<code>integ</code>, <code>thdot_filt</code>, <code>tick</code>, <code>pad</code>). Show a field × bit-class heatmap, not one rate.</li>
+          <li><b>Negative test hits the wrong target</b>: plant state is a physical disturbance, not a memory fault. Target the sensor snapshot, output, and CRC table.</li>
+          <li><b>N and CIs</b>: showing &lt;1% with zero failures needs n ≥ 299; distinguishing 8% vs 5% needs ~1,047 per arm.</li>
+          <li>Full campaign descriptor and result-row schema included.</li>
+        </ul>
+        <div class="file">internal review notes</div>
+      </div>
+
+      <div class="card"><div class="k"><span>04 · FSW architecture</span><span>14 findings</span></div>
+        <h3>Would not survive a real FSW review yet; the baseline is a good start.</h3>
+        <ul>
+          <li><b>No fault management</b>: 4-state FDIR machine with table-driven transition tests.</li>
+          <li><b>Flight/sim boundary not drawn</b>: <code>Plant.cpp</code> is linked into the fsw library and the injection flag changes the tested artifact. Split <code>flight/</code> from <code>sim/</code>.</li>
+          <li><b>Bootstrap trap</b>: <code>command -v clang++</code> succeeds on a clean Mac without Command Line Tools.</li>
+          <li><b>F´ mapping</b>: queued component in a rate group, PrmDb for golden params, throttled events, Health ping. FPP sketch included.</li>
+          <li>Ships a <b>FSW-grade C++ constraint checklist</b>; the baseline already ticks about half.</li>
+        </ul>
+        <div class="file">internal review notes</div>
+      </div>
+
+      <div class="card"><div class="k"><span>05 · Deliverable &amp; framing</span><span>14 findings</span></div>
+        <h3>Misses the first requirement twice; the definition is a mechanism list.</h3>
+        <ul>
+          <li><b>Shipping PID with an explanation does not satisfy "optimization-based".</b> Recommended: iLQR swing-up → LQR; energy swing-up as the fallback.</li>
+          <li><b>Rewrite the definition as a requirement</b> with a coverage matrix; ~2 h of additions (dual-execute compare, output guard, plausibility, degradation ladder) widen it materially.</li>
+          <li><b>Results before disclaimers.</b> Never say "radiation-hardened"; say "soft-error-tolerant under a stated fault model".</li>
+          <li>Includes the "10/10 answer", a risk register, a summary paragraph, and a requirements trace table.</li>
+        </ul>
+        <div class="file">internal review notes</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-eyebrow">Merged fix order · hours are the reviewers' estimates</div>
+    <h2>What to build, in order</h2>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>#</th><th>Change</th><th>Closes</th><th>Est.</th></tr></thead>
+      <tbody>
+        <tr class="now"><td>1</td><td class="what">Move <code>FORCE_LIMIT_N</code> / <code>SAFE_FORCE_N</code> to compile-time constants applied after <code>step()</code>; add per-field range table; wrap θ to (−π, π]</td><td>Themes 03, 01 (wrap)</td><td class="hrs">30 min</td></tr>
+        <tr class="now"><td>2</td><td class="what">Solve the DARE in C++ at init; keep the scipy script as a cross-check test (K must match to 1e-4)</td><td>Theme 05</td><td class="hrs">45 min</td></tr>
+        <tr class="now"><td>3</td><td class="what">Energy swing-up mode + hysteresis switch to LQR; deterministic kick at π; IC grid θ₀ ∈ (−π, π] × x₀ ∈ {−1, 0, 1}</td><td>Theme 01</td><td class="hrs">2–3 h</td></tr>
+        <tr class="now"><td>4</td><td class="what">Protection wrapper: <code>volatile</code> words → decode to locals → <code>step()</code> → invariants → encode State only; Params CRC fixed at init; <code>#ifdef __FAST_MATH__ #error</code></td><td>Themes 07, 09</td><td class="hrs">45 min</td></tr>
+        <tr><td>5</td><td class="what">CRC-32C + Hsiao(39,32) from OpenTitan masks; decode-then-CRC order; write-back on SEC; exhaustive codec test (39 + 741 + 9,139 patterns)</td><td>Theme 09</td><td class="hrs">40 min</td></tr>
+        <tr><td>6</td><td class="what">Recovery = verified <code>params_default()</code> reload + bumpless reseed; 4-state FDIR machine with persistence and a latched SAFE; protect mode/counters</td><td>Themes 02, 08</td><td class="hrs">1 h</td></tr>
+        <tr><td>7</td><td class="what">Actuator-side freshness monitor in sim ticks; stall injection with ZOH on last u; recovery deadline ≤ 300 ms in the test</td><td>Theme 06</td><td class="hrs">45 min</td></tr>
+        <tr><td>8</td><td class="what">Split Verification (exhaustive, at rest) from Assessment (all state, N≈3,000/mode, paired fault list, Wilson CIs, post-injection window vs fault-free twin); in-repo PRNG + <code>faults.csv</code>; <code>-ffp-contract=off</code></td><td>Themes 04, 10</td><td class="hrs">2 h</td></tr>
+        <tr><td>9</td><td class="what">Dual-execute compare of <code>step()</code> (pure, so ~free), input plausibility guard, degradation ladder swing-up → LQR → safe</td><td>Definition breadth (05)</td><td class="hrs">1.5 h</td></tr>
+        <tr><td>10</td><td class="what">README first: trace table R1–R6, definition-as-requirement, coverage matrix, results, 3-bullet limits, week list, AI line, hours spent. Purge "PID on pole angle" and "reset I/D" from every doc</td><td>Theme 11, 05</td><td class="hrs">1.5 h</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin-top:14px;color:var(--mute);font-size:14.5px">Rows 1–4 are the floor. Without them the demo shows recovery that is really masking, and a reviewer typing <code>--theta0 3.14</code> ends the conversation.</p>
+  </section>
+
+  <section>
+    <div class="cols">
+      <div>
+        <div class="sec-eyebrow">Baseline controller · verified this session</div>
+        <h2>What exists now</h2>
+        <div class="status">
+          <div><div class="k">Build</div><div class="v">C++11 · -Wall -Wextra -Wpedantic -Werror · -fno-exceptions -fno-rtti</div></div>
+          <div><div class="k">Tests</div><div class="v">ALL TESTS PASSED (5/5)</div></div>
+          <div><div class="k">Law</div><div class="v">u = −K·[x, ẋ, θ, θ̇], K = [−2.96, −5.56, −47.37, −12.28]</div></div>
+          <div><div class="k">Recover 0.2 rad / 0.5 m</div><div class="v">x=0.016 m, θ=0.0024 rad at 5 s, peak 10.96 N</div></div>
+          <div><div class="k">Deps</div><div class="v">none · no STL containers · no heap · POD structs</div></div>
+          <div><div class="k">Lines</div><div class="v">371 (lib + tests)</div></div>
+        </div>
+        <p style="margin-top:14px;color:var(--mute);font-size:14.5px">Pure <code>step(Params, Input, State, Output)</code> with explicit padding is exactly the seam the protection wrapper needs. Location: <code>assignment-1/fsw/</code>.</p>
+      </div>
+      <div>
+        <div class="sec-eyebrow">Deduplicated across reviews</div>
+        <h2>Open questions</h2>
+        <ul>
+          <li><b>The exact wording</b> of "any non-moving start": if it includes hanging-down, swing-up is mandatory. The plan commits to swing-up.</li>
+          <li><b>Hour budget</b>, and will it be stated in the README? (All reviewers: yes.)</li>
+          <li><b>Integrator at all?</b> If not, delete <code>ki_x</code>/<code>integ</code> and rewrite recovery around golden reload. If yes, do LQI properly (5-state DARE).</li>
+          <li><b>SECDED for narrative, or TMR as the software-native scheme?</b> If SECDED, cite ARGOS.</li>
+          <li><b>C++11 (CMake) or C++17 (SPEC-01)?</b> F´ v4 requires C++14. Affects constexpr CRC and <code>std::clamp</code>.</li>
+          <li><b>Primary format</b>: README + ≤5-min video, or slides? Pick one.</li>
+          <li><b>Double-bit in Params</b>: reload within 300 ms, or declare DUE? Zero force forever is not an option.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cols">
+      <div>
+        <div class="sec-eyebrow">Consensus</div>
+        <h2>What the plan gets right</h2>
+        <ul>
+          <li><b>Inject → classify → harden → re-measure</b> with the standard masked / SDC / DUE vocabulary.</li>
+          <li><b>A negative control</b> on unprotected memory. This separates engineers from demo-builders.</li>
+          <li><b>Double-bit must never silently correct</b>; never run on data you do not trust.</li>
+          <li><b>The compiler caveat</b> in SPEC-02 §6.5 is the right instinct, just aimed at the wrong build.</li>
+          <li><b>Compile-gated, labelled injector</b>; no Docker requirement; no fabricated Orca hardware claims.</li>
+          <li><b>The baseline code shape</b>: pure step, POD blobs, explicit padding, bumpless filter reseed, simulated time only.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="sec-eyebrow">Sim baseline · built this session</div>
+        <h2>What the sim gives you now</h2>
+        <ul>
+          <li><b>Replay viewer</b> <code>sim/render.py</code>: cart, pole, force arrow, θ / x / u traces, and the five force terms (x, ẋ, θ, θ̇ gains plus the integrator) with a P / D / I readout. Simulated time only; <code>--speed</code> to slow it down.</li>
+          <li><b>Scenario runner</b> <code>sim/backtest.py</code>: JSON parameter sets, cartesian sweeps, stats after every run (success rate, settle time, peak |x| and |u|, saturation, per-axis breakdown, basin edges), CSV and outcome maps.</li>
+          <li><b>Adjustable sim rate</b>: <code>--dt</code> and <code>--substeps</code> on the demo binary, sweepable from a scenario file.</li>
+          <li><b>Plant mistune</b>: cart mass, pole mass and half-length flags on the sim side; the flight core is untouched.</li>
+          <li><b>Docker</b> stays the CI and Linux-parity path. It does not buy bit-exactness across libc++ / libstdc++ or FMA defaults.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span class="src">Sources: ~90 cited across the five reports (Åström–Furuta, Tedrake, Florian, SWIFT/EDDI/CFCSS, ARGOS, COAST, Koopman CRC Zoo, OpenTitan, NASA-HDBK-1002, cFS HS/LC/CS, F´ Health/PrmDb, JPL P10)</span>
+  </div>
+</div>
