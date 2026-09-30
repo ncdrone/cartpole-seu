@@ -17,3 +17,4 @@ docs/*
 !docs/GLOSSARY.md
 !docs/how-it-works.html
 !docs/system-diagram.html
+.superpowers/
