@@ -37,7 +37,7 @@ Ship a **small, runnable system** (not a one-file toy) that:
 **Package:** git repository (zip export of the same tree):
 
 ```
-orca-cartpole-softfault/
+cartpole-seu/
   README.md                 # run it, R1–R5 with a number each, how to run, reproducibility, limitations
   fsw/                      # flight core: Controller (pure step, range table), Lqr (on-board design), Protect (SECDED, CRC, store),
                             #   Runtime (decode → input guard → dual step → output guard → FDIR), Math, Config; Plant and the harness

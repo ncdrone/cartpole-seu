@@ -3,7 +3,7 @@
 #
 #   bash scripts/clean_up.sh                 build trees, back-test outputs, verify CSVs, caches, stop viewer processes
 #   bash scripts/clean_up.sh --docker        ...also remove the cartpole Docker image (asks y/N)
-#   bash scripts/clean_up.sh --remote        ...also delete ~/orca-cartpole on the boards named in REMOTE_HOSTS (asks y/N each)
+#   bash scripts/clean_up.sh --remote        ...also delete ~/cartpole-seu on the boards named in REMOTE_HOSTS (asks y/N each)
 #   bash scripts/clean_up.sh --all           --docker --remote
 #   bash scripts/clean_up.sh --force-default answer yes to every y/N
 #   bash scripts/clean_up.sh --dry-run       print what would be removed and exit
@@ -63,9 +63,9 @@ if [ "$REMOTE" -eq 1 ] && [ -z "$REMOTE_HOSTS" ]; then
   skip "no hosts: set REMOTE_HOSTS='h1 h2' and re-run with --remote"
 elif [ "$REMOTE" -eq 1 ]; then
   for h in $REMOTE_HOSTS; do
-    if [ "$DRY" -eq 1 ]; then echo "  would run on $h: rm -rf ~/orca-cartpole"
-    elif confirm "delete ~/orca-cartpole on $h?"; then
-      ssh -o BatchMode=yes -o ConnectTimeout=5 "$h" 'pkill -f bench/serve.py 2>/dev/null; rm -rf ~/orca-cartpole' && ok "$h cleaned" || skip "$h unreachable"
+    if [ "$DRY" -eq 1 ]; then echo "  would run on $h: rm -rf ~/cartpole-seu"
+    elif confirm "delete ~/cartpole-seu on $h?"; then
+      ssh -o BatchMode=yes -o ConnectTimeout=5 "$h" 'pkill -f bench/serve.py 2>/dev/null; rm -rf ~/cartpole-seu' && ok "$h cleaned" || skip "$h unreachable"
     else skip "$h kept"; fi
   done
 else skip "not requested (--remote)"; fi
