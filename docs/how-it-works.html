@@ -48,25 +48,25 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Orca assignment · how the system works · 2026-09-29</div>
+  <div class="eyebrow">Orca assignment · how the system works · 2026-09-30</div>
   <h1>Cart-Pole Soft-Fault System</h1>
-  <p class="sub">What one control tick does, what a flipped bit does to it, and where each flip is corrected, caught, or stopped. Every number below was produced by the code in this repo.</p>
+  <p class="sub">What one control tick does, what a flipped bit does to it, and where each flip is corrected, caught, or stopped. Every number below comes from this repo's binaries or from a probe that links the shipped codec, except one set of rows labelled historical.</p>
   <div class="rule"></div>
 
   <section>
     <div class="sec">1 · the loop</div>
     <h2>One control tick, with the protection layers in place</h2>
     <figure>
-    <svg viewBox="0 0 1000 400" role="img" aria-label="One control tick: encoded parameter store decoded with SECDED then CRC-32C, range table, the pure control step with swing-up and LQR, dual execution compare, output guard with constant clamp, FDIR state machine, then the actuator; a golden reload loop on any detection; the plant and sensors feed back with a plausibility guard">
+    <svg viewBox="0 0 1000 400" role="img" aria-label="One control tick: encoded parameter store of 20 words decoded with SECDED then CRC-32C, range table, the pure control step with swing-up and LQR run twice and compared, output guard with a constant clamp, FDIR state machine, then the actuator monitor; a golden reload loop on a store or compute detection, with DEGRADED and SAFE on repeats; the plant and sensors feed back through the input plausibility guard">
       <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
       <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker></defs>
       <g fill="none" stroke="currentColor" stroke-width="1" font-family="ui-monospace,Menlo,monospace" font-size="11">
         <!-- row 1 -->
         <rect x="20" y="50" width="150" height="86" rx="2" stroke="#ff6b35"/>
         <text x="95" y="70" text-anchor="middle" fill="#ff6b35" stroke="none">1 · store</text>
-        <text x="95" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">9 × F32 words</text>
+        <text x="95" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">20 × F32 words</text>
         <text x="95" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">+7 check bits / word</text>
-        <text x="95" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">+ CRC-32C over 36 B</text>
+        <text x="95" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">+ CRC-32C over 80 B</text>
         <text x="95" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">volatile RAM</text>
 
         <line x1="170" y1="93" x2="205" y2="93" marker-end="url(#a)"/>
@@ -81,8 +81,8 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
         <rect x="360" y="50" width="120" height="86" rx="2"/>
         <text x="420" y="70" text-anchor="middle" fill="currentColor" stroke="none">3 · range table</text>
         <text x="420" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">sign + band / field</text>
-        <text x="420" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">k2 ∈ [−95, −23]</text>
-        <text x="420" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">flim = 20 exactly</text>
+        <text x="420" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">k2: 0.5–2 × ref</text>
+        <text x="420" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">alpha ∈ (0, 1]</text>
         <text x="420" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">independent of ECC</text>
 
         <line x1="480" y1="93" x2="515" y2="93" marker-end="url(#a)"/>
@@ -98,7 +98,7 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
         <text x="755" y="70" text-anchor="middle" fill="currentColor" stroke="none">5 · output guard</text>
         <text x="755" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">isfinite(u)</text>
         <text x="755" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">|u| ≤ 20 N const</text>
-        <text x="755" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">|Δu| ≤ rate limit</text>
+        <text x="755" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">DEGRADED: ±10 N</text>
         <text x="755" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">not from Params</text>
 
         <line x1="820" y1="93" x2="855" y2="93" marker-end="url(#a)"/>
@@ -107,30 +107,30 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
         <text x="917" y="86" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">NOMINAL</text>
         <text x="917" y="100" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">RECOVERING</text>
         <text x="917" y="114" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">DEGRADED</text>
-        <text x="917" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">SAFE (latched)</text>
+        <text x="917" y="128" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">SAFE (no exit)</text>
 
         <!-- detections up to FDIR -->
         <path d="M265,50 L265,30 L917,30 L917,50" stroke="#ff6b35" stroke-dasharray="4 3" marker-end="url(#ao)"/>
         <path d="M420,50 L420,30" stroke="#ff6b35" stroke-dasharray="4 3"/>
         <path d="M585,50 L585,30" stroke="#ff6b35" stroke-dasharray="4 3"/>
         <path d="M755,50 L755,30" stroke="#ff6b35" stroke-dasharray="4 3"/>
-        <text x="590" y="22" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">every detection reports here: DED · CRC fail · out of range · u₁ ≠ u₂ · non-finite</text>
+        <text x="590" y="22" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">every detection reports here: DED · CRC fail · out of range · u₁ ≠ u₂ · non-finite · stall · implausible input · golden CRC</text>
 
         <!-- reload loop -->
         <rect x="20" y="180" width="150" height="60" rx="2"/>
         <text x="95" y="200" text-anchor="middle" fill="currentColor" stroke="none">golden</text>
-        <text x="95" y="216" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">params_default() literals</text>
-        <text x="95" y="230" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">CRC verified before use</text>
+        <text x="95" y="216" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">params_design(model)</text>
+        <text x="95" y="230" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">CRC pinned at init</text>
         <path d="M917,136 L917,210 L170,210" stroke="#ff6b35" marker-end="url(#ao)"/>
-        <text x="540" y="204" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">on any detection: reload golden → re-encode store → reseed filter → RECOVERING</text>
+        <text x="540" y="204" text-anchor="middle" fill="#ff6b35" stroke="none" font-size="10">store or compute detection: reload golden → re-encode → reseed filter → RECOVERING (DEGRADED / SAFE on repeats)</text>
         <line x1="95" y1="180" x2="95" y2="136" stroke="#ff6b35" marker-end="url(#ao)"/>
 
         <!-- actuator / plant / sensors -->
         <path d="M917,136 L917,290 L840,290" marker-end="url(#a)"/>
-        <text x="935" y="250" fill="currentColor" stroke="none" font-size="10" opacity=".75" transform="rotate(90 935 250)">cmd + seq</text>
+        <text x="935" y="250" fill="currentColor" stroke="none" font-size="10" opacity=".75" transform="rotate(90 935 250)">cmd</text>
         <rect x="700" y="265" width="140" height="50" rx="2"/>
         <text x="770" y="285" text-anchor="middle" fill="currentColor" stroke="none">actuator monitor</text>
-        <text x="770" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">stale &gt; N ticks → fallback</text>
+        <text x="770" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">stale &gt; 10 ticks → 0 N</text>
         <line x1="700" y1="290" x2="600" y2="290" marker-end="url(#a)"/>
         <rect x="490" y="265" width="110" height="50" rx="2"/>
         <text x="545" y="285" text-anchor="middle" fill="currentColor" stroke="none">plant</text>
@@ -138,7 +138,7 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
         <line x1="490" y1="290" x2="400" y2="290" marker-end="url(#a)"/>
         <rect x="270" y="265" width="130" height="50" rx="2"/>
         <text x="335" y="285" text-anchor="middle" fill="currentColor" stroke="none">plausibility</text>
-        <text x="335" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">|Δθ − θ̇·dt| ≤ tol</text>
+        <text x="335" y="301" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">Δθ vs θ̇·dt ≤ 0.05</text>
         <path d="M270,290 L200,290 L200,150 L585,150 L585,136" marker-end="url(#a)"/>
         <text x="392" y="164" text-anchor="middle" fill="currentColor" stroke="none" font-size="10" opacity=".75">Input for the next tick</text>
 
@@ -147,66 +147,76 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
         <text x="20" y="378" fill="currentColor" stroke="none" font-size="10" opacity=".75">Stages 2, 3 and 5 are independent detectors: a fault that slips one is caught by the next. The triple-bit case in §3 shows why that matters.</text>
       </g>
     </svg>
-    <figcaption>Stages 1–6 run inside the flight core once per 10 ms tick. The store is decoded into local copies every tick, so a flip in RAM is seen the next time it is read. The plausibility guard belongs to the flight core (it runs on every SensorFrame); the plant and actuator monitor are sim-side today and F´ components later.</figcaption>
+    <figcaption>Stages 1–6 run inside the flight core once per 10 ms tick. The store is decoded into local copies every tick, so a flip in RAM is seen the next time it is read. The input plausibility guard belongs to the flight core (it checks every sensor sample before <code>step()</code>, and its first reject holds the last good sample without a reload); the plant and the actuator monitor are sim-side today and F´ components later.</figcaption>
     </figure>
   </section>
 
   <section>
-    <div class="sec">2 · what a flip does today · baseline binary, no protection · measured</div>
+    <div class="sec">2 · what a flip does · baseline binary, no protection · measured</div>
     <h2>Real bit flips through the unprotected controller</h2>
-    <p>Each row is one run of <code>fsw/build/cartpole_demo</code> from θ₀ = 0.05 rad, upright and settling, with one bit of <code>Params</code> XOR-flipped at tick 100 (t = 1.0 s). The fault stays in memory, as a real SEU would until something rewrites the word.</p>
+    <p>Each row is one run of <code>fsw/build/cartpole_baseline</code> from θ₀ = 0.05 rad, upright and settling, with bits of <code>Params</code> XOR-flipped at the start of tick 100 (t = 1.00 s), 6 s long. The fault stays in memory, as a real SEU would until something rewrites the word. The force column is tick 101, the tick after the flip; "falls" is the first tick with |θ| &gt; 90°.</p>
     <div class="tbl"><table>
-      <thead><tr><th>Flip</th><th>Word</th><th>Value</th><th>Next-tick force</th><th>What happened</th><th>Fault flag</th><th>Outcome</th></tr></thead>
+      <thead><tr><th>Flip</th><th>Word</th><th>Value</th><th>Force, tick 101</th><th>What happened</th><th>Fault flag</th><th>Outcome</th></tr></thead>
       <tbody>
         <tr><td class="m">none</td><td class="m">–</td><td class="m">–</td><td class="m">−0.16 N</td><td>Settles and holds.</td><td class="m">0</td><td><span class="tag ok">OK</span></td></tr>
-        <tr><td class="m">flim bit 31 (sign)</td><td class="m">0x41A00000 → 0xC1A00000</td><td class="m">20 → −20</td><td class="m w">−20.00 N</td><td class="w">The clamp now returns −20 for any u above −20: full-force positive feedback. Pole past horizontal at 1.33 s, off the rail at 1.53 s, cart ends 57 m away.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
-        <tr><td class="m">flim bit 30 (exponent)</td><td class="m">0x41A00000 → 0x01A00000</td><td class="m">20 → 5.9e−38</td><td class="m w">−0.00 N</td><td class="w">Clamp limit is now ~0, so every command is ~0 N. The pole falls at 2.51 s with the cart sitting still.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
-        <tr><td class="m">flim bit 29</td><td class="m">0x41A00000 → 0x61A00000</td><td class="m">20 → 3.7e20</td><td class="m">−0.16 N</td><td>Clamp is effectively disabled. Nothing happens this run because the loop never asks for more than 2.4 N, but the safety limit is gone.</td><td class="m">0</td><td><span class="tag dim">latent</span></td></tr>
-        <tr><td class="m">k2 bit 31 (sign)</td><td class="m">0xC23D7EB3 → 0x423D7EB3</td><td class="m">−47.37 → +47.37</td><td class="m w">+0.98 N</td><td class="w">Pole gain flips sign: the controller pushes the pole over. Fell at 2.10 s, off the rail at 2.54 s.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
-        <tr><td class="m">k2 bit 30 (exponent)</td><td class="m">0xC23D7EB3 → 0x823D7EB3</td><td class="m">−47.37 → −1.4e−37</td><td class="m w">+0.41 N</td><td class="w">Pole feedback is gone; only the cart terms remain. The pole drifts and falls at 5.16 s. Finite, so <code>isfinite</code> sees nothing.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
-        <tr><td class="m">k2 bit 0 (mantissa LSB)</td><td class="m">0xC23D7EB3 → 0xC23D7EB2</td><td class="m">−47.3737 → −47.3737</td><td class="m">−0.16 N</td><td>Gain changed by one part in 10⁷. Feedback absorbs it completely.</td><td class="m">0</td><td><span class="tag ok">masked</span></td></tr>
-        <tr><td class="m">k0 bit 30 (exponent)</td><td class="m">0xC03D9F56 → 0x803D9F56</td><td class="m">−2.96 → −5.7e−39</td><td class="m">−0.42 N</td><td>Cart-position gain is gone. The pole stays up and the cart is no longer regulated; at 6 s it sits at 7 cm and will drift. A θ-only success check would call this a pass.</td><td class="m">0</td><td><span class="tag dim">SDC · slow</span></td></tr>
-        <tr><td class="m">alpha bit 30</td><td class="m">0x3F800000 → 0x7F800000</td><td class="m">1.0 → +Inf</td><td class="m w">0.00 N</td><td class="w">The only flip <code>isfinite</code> catches. The fault path outputs the "safe" force of 0 N every tick from then on, so the pole falls at 2.51 s anyway.</td><td class="m w">1 at 1.00 s</td><td><span class="tag bad">DUE · fell</span></td></tr>
+        <tr><td class="m">k2 bit 31 (sign)</td><td class="m">0xC23D7EB4 → 0x423D7EB4</td><td class="m">−47.37 → +47.37</td><td class="m w">+0.98 N</td><td class="w">Pole gain flips sign: the controller pushes the pole over. Falls at 2.10 s; from then on swing-up brings it back about once a second and the bad gain throws it over again. The cart stays on the rail.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">k2 bit 30 (exponent)</td><td class="m">0xC23D7EB4 → 0x823D7EB4</td><td class="m">−47.37 → −1.4e−37</td><td class="m w">+0.41 N</td><td class="w">Pole feedback is gone; only the cart terms remain. The cart leaves the rail at 4.91 s and the pole falls at 5.19 s. Finite, so <code>isfinite</code> sees nothing.</td><td class="m">0</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">k2 bit 0 (mantissa LSB)</td><td class="m">0xC23D7EB4 → 0xC23D7EB5</td><td class="m">−47.3737 → −47.3737</td><td class="m">−0.16 N</td><td>Gain changed by one part in 10⁷. Feedback absorbs it completely; the trajectory prints identically.</td><td class="m">0</td><td><span class="tag ok">masked</span></td></tr>
+        <tr><td class="m">k0 bit 30 (exponent)</td><td class="m">0xC03D9F56 → 0x803D9F56</td><td class="m">−2.96 → −5.7e−39</td><td class="m">−0.42 N</td><td>Cart-position gain is gone. The pole stays up and the cart is no longer regulated; at 6 s it sits at 7 cm, inside the 0.1 m success band, so the campaign counts it as masked. A longer run would drift.</td><td class="m">0</td><td><span class="tag dim">masked · unregulated</span></td></tr>
+        <tr><td class="m">alpha bit 30</td><td class="m">0x3F800000 → 0x7F800000</td><td class="m">1.0 → +Inf</td><td class="m w">0.00 N</td><td class="w"><code>isfinite</code> catches it inside <code>step()</code>. The fault path outputs the "safe" force of 0 N every tick from then on, so the pole falls at 2.51 s anyway. The baseline has no detector to act on the flag, so the campaign counts it as SDC.</td><td class="m w">1 at 1.00 s</td><td><span class="tag bad">fault · fell</span></td></tr>
       </tbody>
     </table></div>
-    <p class="note" style="margin-top:14px">These rows were measured on the first baseline, when the force limit and safe force still lived inside <code>Params</code>; they have since moved to compile-time constants, which is why the protected build cannot be given the first three flips at all. Of 256 possible single-bit flips in that <code>Params</code>, exactly one produced a non-finite value. The rest are finite and wrong, and the dangerous ones are all sign or exponent bits. Detection has to look at <em>meaning</em> (range) and <em>integrity</em> (codes), not at NaN.</p>
+    <p class="note" style="margin-top:14px">Of the 640 single-bit flips in today's 20-word <code>Params</code>, two produce a non-finite value (alpha and mM bit 30, both 1.0 → +Inf). The rest are finite and wrong, and all 42 that the campaign counts as silent corruption are sign or exponent bits (24–31). Detection has to look at <em>meaning</em> (range) and <em>integrity</em> (codes), not at NaN.</p>
+    <h3>Historical rows · first baseline</h3>
+    <p>The first baseline kept the force limit (20.0 = 0x41A00000) and the safe force inside <code>Params</code>. These rows were measured on that build; they cannot be reproduced now, because <code>force_limit</code> and <code>safe_force</code> are compile-time constants (<code>cfg::FORCE_LIMIT_N</code>, <code>cfg::SAFE_FORCE_N</code>) that no flip can reach, and the injector rejects the old field name.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Flip (first baseline)</th><th>Word</th><th>Value</th><th>What happened</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td class="m">force_limit bit 31</td><td class="m">0x41A00000 → 0xC1A00000</td><td class="m">20 → −20</td><td>The clamp returned −20 for any u above −20: full-force positive feedback. Pole past horizontal at 1.33 s.</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">force_limit bit 30</td><td class="m">0x41A00000 → 0x01A00000</td><td class="m">20 → 5.9e−38</td><td>Clamp limit ~0, so every command was ~0 N. The pole fell at 2.51 s with the cart still.</td><td><span class="tag bad">SDC · fell</span></td></tr>
+        <tr><td class="m">force_limit bit 29</td><td class="m">0x41A00000 → 0x61A00000</td><td class="m">20 → 3.7e20</td><td>Clamp effectively disabled; nothing happened in that run, but the safety limit was gone.</td><td><span class="tag dim">latent</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" style="margin-top:14px">In that 9-word <code>Params</code>, 1 of 256 single flips was non-finite. These three rows are why the clamp and the fault-time force moved out of the corruptible block.</p>
   </section>
 
   <section>
-    <div class="sec">3 · the same flips through the protected pipeline · computed</div>
+    <div class="sec">3 · the same flips through the protected pipeline · measured</div>
     <h2>Where each flip is corrected, caught, or stopped</h2>
-    <p class="note">Now measured, not only computed: <code>sim/campaign.py</code> pushes every bit of every word through both builds. Unprotected: 42 of 640 single flips are silent corruption. Protected: 640 of 640 corrected, 60 of 60 double flips detected and recovered by golden reload, every check-bit and CRC-word flip handled, 13 compute-window flips caught by dual execution, every stall recovered. Full table in the README.</p>
-    <p>Same words, now stored with 7 SECDED check bits per word and a CRC-32C over the 36-byte blob (golden CRC <code>0xBFAA04E8</code>). Syndromes and CRCs below are computed by the reference codec, which was checked exhaustively: all 32 single-bit flips of a word correct back to the original, all 496 double-bit flips report DED.</p>
+    <p class="note"><code>sim/campaign.py</code> pushes every bit of every word through both builds. Unprotected: 42 of 640 single flips are silent corruption. Protected: 640 of 640 corrected, 60 of 60 double flips detected and recovered by golden reload, every check-bit and CRC-word flip handled, 13 compute-window flips caught by dual execution, every stall recovered. Full table in the README.</p>
+    <p>The protected build stores each word with 7 Hsiao SECDED check bits and a CRC-32C over the 80-byte <code>Params</code> (golden CRC <code>0x9E919ECA</code>, pinned at init). Check bytes, syndromes, SECDED verdicts and CRCs below come from a probe that links the shipped <code>fsw/src/Protect.cpp</code>; the decision column is what <code>fsw/build/cartpole_demo</code> logs at tick 100 for the same flip (θ₀ = 0.05 rad).</p>
     <div class="tbl"><table>
-      <thead><tr><th>Flip</th><th>Check bits</th><th>Syndrome</th><th>SECDED says</th><th>Value after SECDED</th><th>CRC-32C</th><th>Range table</th><th>Decision</th></tr></thead>
+      <thead><tr><th>Flip</th><th>Check byte</th><th>Syndrome</th><th>SECDED says</th><th>Value after SECDED</th><th>CRC-32C over 80 B</th><th>Range table</th><th>Decision</th></tr></thead>
       <tbody>
-        <tr><td class="m">flim bit 31</td><td class="m">0x7D</td><td class="m">38</td><td><span class="tag fix">SEC</span></td><td class="m">20.0 (restored)</td><td class="m">would pass after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> Word rewritten (scrubbed), correction counter +1, no change to the command.</td></tr>
-        <tr><td class="m">flim bit 30</td><td class="m">0x7D</td><td class="m">37</td><td><span class="tag fix">SEC</span></td><td class="m">20.0 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b></td></tr>
-        <tr><td class="m">k2 bit 30</td><td class="m">0x46</td><td class="m">37</td><td><span class="tag fix">SEC</span></td><td class="m">−47.37 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> The flip that fell the pole at 5.16 s in §2 is now invisible to the plant.</td></tr>
-        <tr><td class="m">k2 bit 0</td><td class="m">0x46</td><td class="m">3</td><td><span class="tag fix">SEC</span></td><td class="m">−47.3737 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> Even a harmless flip is corrected and counted; the count is telemetry for FDIR trends.</td></tr>
-        <tr><td class="m">alpha bit 30</td><td class="m">0x58</td><td class="m">37</td><td><span class="tag fix">SEC</span></td><td class="m">1.0 (restored)</td><td class="m">passes after fix</td><td class="m">–</td><td class="w"><b>Correct and continue.</b> The Inf never reaches <code>step()</code>, so the fault path that dropped the pole is never taken.</td></tr>
-        <tr><td class="m">k2 bits 30+31</td><td class="m">0x46</td><td class="m">3</td><td><span class="tag stop">DED</span></td><td class="m">+1.4e−37 (untrusted)</td><td class="m">0x4EE82E74 ≠ golden</td><td class="m">out of band</td><td class="w"><b>Detect and reload.</b> SECDED refuses to guess. Golden <code>Params</code> reloaded and re-encoded, filter reseeded, state → RECOVERING. Command this tick comes from the reloaded gains.</td></tr>
-        <tr><td class="m">flim bits 3+17</td><td class="m">0x7D</td><td class="m">16</td><td><span class="tag stop">DED</span></td><td class="m">20.25 (untrusted)</td><td class="m">0x261DA0F1 ≠ golden</td><td class="m">≠ 20 exactly</td><td class="w"><b>Detect and reload.</b> Note the value looks nearly right. The system does not care; a DED word is never used.</td></tr>
-        <tr><td class="m">k2 bits 4+12+25</td><td class="m">0x46</td><td class="m">4</td><td><span class="tag bad">SEC (wrong)</span></td><td class="m w">−2.96 (miscorrected)</td><td class="m w">0x1794FDCD ≠ golden</td><td class="m w">out of band</td><td class="w"><b>Detect and reload, by the second and third layers.</b> Three flips alias to a single-bit syndrome, so SECDED "corrects" the gain to −2.96 and reports success. The CRC over the corrected blob fails, and the range table rejects −2.96 for k2 independently. This is why the order is decode → CRC → range, and why CRC is not optional.</td></tr>
+        <tr><td class="m">k2 bit 31</td><td class="m">0x59</td><td class="m">0x62 (98)</td><td><span class="tag fix">SEC</span></td><td class="m">−47.37 (restored)</td><td class="m">0x9E919ECA = golden</td><td class="m">pass</td><td class="w"><b>Correct, continue.</b> Scrubbed; <code>det</code> 1, NOMINAL, command unchanged.</td></tr>
+        <tr><td class="m">k2 bit 30</td><td class="m">0x59</td><td class="m">0x61 (97)</td><td><span class="tag fix">SEC</span></td><td class="m">−47.37 (restored)</td><td class="m">= golden</td><td class="m">pass</td><td class="w"><b>Correct, continue.</b> The §2 fall at 5.19 s never happens.</td></tr>
+        <tr><td class="m">k2 bit 0</td><td class="m">0x59</td><td class="m">0x07 (7)</td><td><span class="tag fix">SEC</span></td><td class="m">−47.3737 (restored)</td><td class="m">= golden</td><td class="m">pass</td><td class="w"><b>Correct, continue.</b> Harmless, corrected and counted anyway.</td></tr>
+        <tr><td class="m">alpha bit 30</td><td class="m">0x40</td><td class="m">0x61 (97)</td><td><span class="tag fix">SEC</span></td><td class="m">1.0 (restored)</td><td class="m">= golden</td><td class="m">pass</td><td class="w"><b>Correct, continue.</b> The +Inf never reaches <code>step()</code>.</td></tr>
+        <tr><td class="m">k2 check bit c6</td><td class="m">0x59 → 0x19</td><td class="m">0x40 (64)</td><td><span class="tag fix">SEC</span></td><td class="m">−47.37 (data untouched)</td><td class="m">= golden</td><td class="m">pass</td><td class="w"><b>Correct, continue.</b> Weight-1 syndrome: a check bit; data untouched.</td></tr>
+        <tr><td class="m">k2 bits 30+31</td><td class="m">0x59</td><td class="m">0x03 (3)</td><td><span class="tag stop">DED</span></td><td class="m">+1.4e−37 (untrusted)</td><td class="m">0xD6E05865 ≠ golden</td><td class="m">out of band</td><td class="w"><b>Detect, reload.</b> <code>det</code> 2, RECOVERING, NOMINAL at tick 150.</td></tr>
+        <tr><td class="m">alpha bits 3+17</td><td class="m">0x40</td><td class="m">0x3C (60)</td><td><span class="tag stop">DED</span></td><td class="m">1.0156 (untrusted)</td><td class="m">0x6EADC79C ≠ golden</td><td class="m">&gt; 1: out of range</td><td class="w"><b>Detect, reload.</b> Looks nearly right; never used.</td></tr>
+        <tr><td class="m">k2 bits 21+22+23</td><td class="m">0x59</td><td class="m">0x4A (74)</td><td><span class="tag bad">SEC (wrong)</span></td><td class="m w">−442.99 (miscorrected)</td><td class="m w">0x1D546491 ≠ golden</td><td class="m w">out of band</td><td class="w"><b>Caught by the CRC.</b> <code>det</code> 3, reload, RECOVERING.</td></tr>
+        <tr><td class="m">k2 bits 0+1+21</td><td class="m">0x59</td><td class="m">0x49 (73)</td><td><span class="tag bad">SEC (wrong)</span></td><td class="m w">−78.75 (miscorrected)</td><td class="m w">0x56FDCD16 ≠ golden</td><td class="m w">pass (in band)</td><td class="w"><b>Caught by the CRC alone.</b> <code>det</code> 3, reload.</td></tr>
       </tbody>
     </table></div>
-    <p class="note" style="margin-top:14px">Miscorrection is not rare: over all 9,139 triple-bit patterns in a 39-bit word, extended Hamming miscorrects 69% and Hsiao 60%. Multi-bit upsets are more than 5% of space memory errors. The CRC exists for exactly this case.</p>
+    <p style="margin-top:14px"><b>The two triples.</b> Three adjacent flips in k2 (0xC23D7EB4 → 0xC2DD7EB4) give syndrome 0x4A, which is the column of bit 24, so SECDED "corrects" bit 24 as well and reports success: four bits now differ and the gain reads −442.99. The CRC over the corrected plaintext fails, and <code>cartpole_demo</code> logs <code>det</code> 3 CRC at tick 100 (the miscorrection also bumps the SEC counter), reloads the golden and enters RECOVERING; the range table would have rejected −442.99 independently. For bits 0+1+21 the syndrome names bit 23 and the gain comes back as −78.75, inside k2's band, so the CRC is the only layer that catches it. That is why the order is decode → CRC → range, and why the CRC is not optional.</p>
+    <p class="note" style="margin-top:14px">Miscorrection is not rare: of the 9,139 three-bit patterns of the 39-bit k2 codeword, the shipped Hsiao code reports SEC on 5,500 (60.2%; extended Hamming would be 69%). Of k2's 4,960 data-bit triples, 2,903 come back as a wrong word, and 1,062 of those are still inside the range band. Across all 20 words the probe finds 110,000 SEC-reported triples, every one a wrong word and every one caught by the CRC-32C, which has Hamming distance 6 at this 640-bit block. Multi-bit upsets are more than 5% of space memory errors.</p>
   </section>
 
   <section>
     <div class="sec">4 · detect and correct vs detect and stop</div>
     <h2>The response ladder</h2>
-    <p>Correction is only allowed when the code can prove which bit flipped. Everything else is treated as untrusted and replaced from a verified source. The plant sets the clock: at zero force the pole is unrecoverable after 0.3–1.3 s depending on angle, so every response below completes inside one 10 ms tick and the whole ladder must resolve within about 300 ms.</p>
+    <p>Correction is only allowed when the code can prove which bit flipped. Everything else is treated as untrusted and replaced from a verified source. The plant sets the clock: measured with <code>sim/campaign.py --deadline</code>, a controller stall that begins at t = 1 s is recoverable for 0.6 s (from θ₀ 30°) to 1.3 s (from θ₀ 1°). Every response below completes inside the detecting 10 ms tick, well within the 300 ms budget.</p>
     <div class="ladder">
-      <div class="step"><div class="k">single-bit · SEC</div><h3>Correct, scrub, count</h3><p>Syndrome names the bit. Fix it in the local copy, write the corrected word back to the store, increment the correction counter. No command change, no state change. Telemetry only.</p></div>
-      <div class="step hot"><div class="k">DED · CRC fail · out of range · u₁≠u₂</div><h3>Reload golden, RECOVERING</h3><p>Do not use the word. Rebuild <code>Params</code> from the compile-time literals, verify its CRC, re-encode the store, reseed the θ̇ filter from the current measurement (bumpless). Command this tick uses the reloaded gains. Exit to NOMINAL after M clean ticks.</p></div>
-      <div class="step"><div class="k">second detection in window</div><h3>DEGRADED</h3><p>Entered on a second detection within the 200-tick window: a stuck bit, a corrupted golden, or a bug. Swing-up is inhibited (a swing-mode tick commands 0 N and flags the fault) and the clamp is halved to 10 N. Exits to NOMINAL after 200 clean ticks; any further detection latches SAFE.</p></div>
-      <div class="step"><div class="k">still failing · or |θ| beyond limit</div><h3>SAFE, latched</h3><p>Force = 0, constant. Loop declared lost. Only an explicit command clears it. For this plant SAFE means the pole is down and the actuator is benign; there is no static command that keeps it up, so the ladder above is what "safe" really means.</p></div>
+      <div class="step"><div class="k">single-bit · SEC</div><h3>Correct, scrub, count</h3><p>Syndrome names the bit. Fix it in the local copy, write the corrected word back to the store, increment the correction counter. No command change, no state change, and the tick still counts as clean. Telemetry only.</p></div>
+      <div class="step hot"><div class="k">DED · CRC · range · u₁≠u₂ · non-finite · stall</div><h3>Reload golden, RECOVERING</h3><p>Do not use the word. Rebuild <code>Params</code> from the nominal model (defaults plus the on-board Riccati K) and accept it only if its CRC-32C equals the value pinned at init; re-encode the store; reseed the θ̇ filter from the next measurement (bumpless). The command this tick uses the reloaded gains. NOMINAL again after 50 clean ticks. An implausible sensor sample is first held without a reload; a second consecutive one reloads.</p></div>
+      <div class="step"><div class="k">second detection while recovering</div><h3>DEGRADED</h3><p>Entered when a second detection arrives within the 200-tick window before RECOVERING has counted its 50 clean ticks: a stuck bit, a persistent input fault, or a bug. Swing-up is inhibited (a swing-mode tick commands 0 N and flags the fault) and the clamp is halved to 10 N. NOMINAL again after 200 clean ticks; any detection while DEGRADED latches SAFE.</p></div>
+      <div class="step"><div class="k">3rd in window · any while degraded · bad golden · bad FDIR word</div><h3>SAFE, no exit</h3><p>Force = 0 N, constant, fault flag set, <code>step()</code> not run. Loop declared lost; only a restart clears it. For this plant SAFE means the pole is down and the actuator is benign; there is no static command that keeps it up, so the ladder above is what "safe" really means.</p></div>
     </div>
-    <h3>Two things the ladder never does</h3>
+    <h3>Two rules the ladder keeps</h3>
     <ul>
-      <li><b>It never "resets the integrator" as a recovery.</b> With LQR the integrator is off; with PID a reset injects a permanent cart velocity of g·I and a derivative kick of up to 43 N. Persistent parameters are what get reloaded; dynamic state is reseeded from measurements.</li>
-      <li><b>It never holds the last command as a fallback.</b> Hold-last is strictly worse than zero force at every angle for an inverted pendulum (survivable outage 330 ms vs 500 ms at 5°).</li>
+      <li><b>It never "resets the integrator" as a recovery.</b> With LQR the integrator is off (<code>KI_X</code> = 0, and reseed zeroes it); with PID a reset injects a permanent cart velocity and a derivative kick. Persistent parameters are what get reloaded; dynamic state is reseeded from measurements.</li>
+      <li><b>It holds a stale command for 10 ticks at most.</b> When the controller stops, the actuator monitor keeps the last command for <code>STALE_MAX_TICKS</code> = 10 (100 ms), then applies 0 N; when the controller resumes, the stall is a detection and the golden is reloaded. Measured from θ₀ 5°, a stall of up to 1.0 s is recovered.</li>
     </ul>
   </section>
 
@@ -218,13 +228,13 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
       <tbody>
         <tr><td class="w">1 bit in a stored parameter</td><td class="m">k2 bit 30</td><td><span class="tag fix">corrects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
         <tr><td class="w">2 bits in one word</td><td class="m">k2 bits 30+31</td><td><span class="tag stop">detects</span></td><td><span class="tag stop">detects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
-        <tr><td class="w">3+ bits in one word</td><td class="m">k2 bits 4+12+25</td><td><span class="tag bad">miscorrects</span></td><td><span class="tag stop">detects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
-        <tr><td class="w">flip in the check bits or CRC word</td><td class="m">–</td><td><span class="tag fix">corrects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
-        <tr><td class="w">flip in a register mid-computation</td><td class="m">local copy of k2 inside step()</td><td class="m dim">blind</td><td class="m dim">blind</td><td class="m dim">blind</td><td><span class="tag stop">detects</span></td><td class="m dim">partial</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">3 bits in one word</td><td class="m">k2 bits 21+22+23</td><td><span class="tag bad">miscorrects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">partial</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">flip in the check bits or CRC word</td><td class="m">k2 c6 · CRC bit 4</td><td><span class="tag fix">corrects</span></td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td></tr>
+        <tr><td class="w">flip in a register mid-computation</td><td class="m">lane 1's copy of k2</td><td class="m dim">blind</td><td class="m dim">blind</td><td class="m dim">blind</td><td><span class="tag stop">detects</span></td><td class="m dim">partial</td><td class="m dim">–</td><td class="m dim">–</td></tr>
         <tr><td class="w">non-finite or oversized command</td><td class="m">u = NaN, u = 1e20</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td><span class="tag stop">detects</span></td><td class="m dim">–</td><td class="m dim">–</td></tr>
         <tr><td class="w">flip in a sensor sample</td><td class="m">Input.theta bit 30</td><td class="m dim">blind</td><td class="m dim">blind</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">partial</td><td><span class="tag stop">detects</span></td><td class="m dim">–</td></tr>
         <tr><td class="w">hung or late control task</td><td class="m">skip k ticks</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td><span class="tag stop">detects</span></td></tr>
-        <tr><td class="w">flip in the FDIR state word</td><td class="m">mode bit</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">–</td><td class="m dim">stored as (v, ~v) with HD-16 codes; default → SAFE</td></tr>
+        <tr><td class="w">flip in the FDIR state word or its counters</td><td class="m">fdir_state bit 3</td><td colspan="7" class="dim">stored as (v, ~v); state codes at Hamming distance ≥ 16; a mismatch or an unknown code reads as SAFE</td></tr>
         <tr><td class="w">flip in code (.text), OS, bus</td><td class="m">–</td><td colspan="7" class="dim">out of scope for this package: hardware EDAC, image CRC at boot, bus CRCs, F´ Health. Documented, not built.</td></tr>
       </tbody>
     </table></div>
@@ -232,15 +242,16 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
 
   <section>
     <div class="sec">6 · try it</div>
-    <h2>Reproduce the §2 rows</h2>
+    <h2>Reproduce §2 and §3</h2>
 <pre>bash scripts/build_demo.sh                                   # build + verify
-fsw/build/cartpole_demo --theta0 0.05 --seconds 6 --flip flim:31 --flip-tick 100 > flip.csv
-python3 sim/render.py --csv flip.csv                        # watch the pole go over at 1.3 s
-fsw/build/cartpole_demo --theta0 0.05 --seconds 6 --flip k2:30 --flip-tick 100 | python3 sim/render.py --csv /dev/stdin</pre>
-    <p>Fields: <code>k0 k1 k2 k3 ki ilim alpha flim safe</code>, bits 0–31, IEEE-754 binary32 layout (bit 31 sign, 30–23 exponent, 22–0 mantissa). The injector lives in the sim-side <code>main.cpp</code>; the flight core has no knowledge of it. Built: on-board Riccati solve, θ wrap, energy swing-up, the encoded store with SECDED and CRC-32C, the range table, dual execution, the output guard from constants, and the 3-state FDIR with verified golden reload. §3 is now runnable: <code>fsw/build/cartpole_demo --flip k2:30+31 --flip-tick 100</code>. §3 becomes runnable once the store, decode and range stages land in the flight core (rows 1, 4 and 5).</p>
+fsw/build/cartpole_baseline --theta0 0.05 --seconds 6 --flip k2:31 --flip-tick 100 > flip.csv
+python3 sim/render.py --csv flip.csv                        # the pole goes over at 2.1 s
+fsw/build/cartpole_baseline --theta0 0.05 --seconds 6 --flip k2:30 --flip-tick 100 > flip30.csv   # rail at 4.91 s, falls at 5.19 s
+fsw/build/cartpole_demo --theta0 0.05 --seconds 6 --flip k2:21+22+23 --flip-tick 100 | sed -n 102p   # tick 100: det 3 (CRC), fdir 1, sec 1, reload 1</pre>
+    <p>Fields: <code>k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg</code>, bits 0–31 (<code>+</code> for several), IEEE-754 binary32 layout (bit 31 sign, 30–23 exponent, 22–0 mantissa). The injector lives in the sim-side <code>main.cpp</code>; the flight core has no knowledge of it. Built: on-board Riccati solve, θ wrap, energy swing-up, the encoded store with SECDED and CRC-32C, the range table, the input plausibility guard, dual execution, the output guard from constants, and the four-state FDIR (NOMINAL, RECOVERING, DEGRADED, SAFE) with verified golden reload. Every §3 row runs on <code>cartpole_demo</code>.</p>
   </section>
 
-  <div style="border-top:1px solid var(--line);padding-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim)">Sources of the numbers: fsw/build/cartpole_demo --flip (§2); reference SECDED/CRC-32C codec in the session scratchpad, exhaustively checked (§3); research/01 survivable-outage table and research/02 miscorrection census (§4, §5).</div>
+  <div style="border-top:1px solid var(--line);padding-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim)">Sources of the numbers: <code>fsw/build/cartpole_baseline --flip</code> (§2 current rows); the first baseline build (§2 historical rows); a probe linking <code>fsw/src/Protect.cpp</code>, and <code>fsw/build/cartpole_demo --flip</code> (§3); <code>sim/campaign.py</code> and <code>--deadline</code> (§3 note, §4); <code>test_protect</code> (triple census).</div>
 </div>
 </body>
 </html>

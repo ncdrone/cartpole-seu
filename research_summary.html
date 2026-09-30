@@ -1,11 +1,10 @@
 <title>Cart-Pole Fault Audit</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
 /* Layout: single editorial column, mono eyebrows, hairline sections. NOIR ident: dark by choice; orange reserved for Critical + brand. */
 :root{
   --bg:#080808; --panel:#0d0d10; --line:#242429; --ink:#f2f2f2; --mute:#9a9aa2; --dim:#55555c;
   --orange:#ff6b35; --orange-tint:rgba(255,107,53,.12); --orange-cell:#170d08; --fade:#3a3a42;
-  --display:'Inter',Helvetica,Arial,sans-serif; --mono:'JetBrains Mono',Menlo,Consolas,monospace;
+  --display:-apple-system,"Helvetica Neue",Helvetica,Inter,Arial,sans-serif; --mono:ui-monospace,Menlo,"JetBrains Mono",Consolas,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -113,6 +112,15 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
   <div class="rule"></div>
 
   <section>
+    <p class="note" style="margin:0 0 18px;padding:12px 14px;border-left:2px solid var(--orange);color:var(--mute);max-width:72ch">Review of the plan as of 2026-09-29; the build has since closed the items below. Current numbers are in the README.</p>
+    <div class="sec-eyebrow">Status now · 2026-09-30</div>
+    <ul style="margin:0 0 26px;max-width:78ch;color:var(--mute)">
+      <li>Swing-up built: grid 905/905 including hanging-down, basin 181/181, mistune 108/108.</li>
+      <li>LQR gains solved on board at init; the scipy table is the cross-check.</li>
+      <li>Protected build: Hsiao SECDED + CRC-32C store, range table, input plausibility guard, dual execution, output guard from constants, four-state FDIR with verified golden reload. Campaign: 640/640 single flips corrected, 60/60 double flips recovered, 0 SDC; the baseline shows 42/640 SDC.</li>
+      <li>Actuator freshness monitor (10-tick hold, then 0 N); measured recoverable stall 0.6–1.3 s against a 300 ms budget.</li>
+      <li>As built, three recommendations below were done differently: the golden is rebuilt from the model and checked against a CRC pinned at init, <code>State</code> is re-encoded every tick, and the SECDED columns are the first 32 weight-3 values (SPEC-01 §4 and §6).</li>
+    </ul>
     <p class="verdict">The soft-fault <em>method</em> (inject, classify, harden, re-measure, with a negative control) is the strongest part of the plan and most submissions will not have it. But the plan misses the first requirement twice: <strong>it cannot swing up from hanging-down</strong>, and the "optimization-based" answer is four constants from a Python script. On the protection side, <strong>the headline recovery does nothing</strong> in the shipped code, the force clamp is configured by the data it is meant to defend, and <strong>the campaign is built so it cannot fail</strong>. Every one of these is fixable inside the assignment budget, and the fixes make the story stronger than the one in the spec.</p>
 
     <div class="stats">
@@ -126,8 +134,8 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
 
     <div class="basin">
       <div class="track"><div class="fill"></div></div>
-      <div class="ticks"><span>0°</span><span>44°</span><span>90°</span><span>180° (hanging down)</span></div>
-      <div class="cap">Share of "any non-moving start" the shipped LQR can catch: <b>|θ₀| ≤ 44°</b> at 20 N, ±2.4 m track. Simulated in report 01.</div>
+      <div class="ticks"><span>0°</span><span>43°</span><span>90°</span><span>180° (hanging down)</span></div>
+      <div class="cap">Share of "any non-moving start" the shipped LQR can catch: <b>|θ₀| ≤ 43°</b> at 20 N, ±2.4 m track. Simulated in report 01.</div>
     </div>
   </section>
 
@@ -138,7 +146,7 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
 
       <div class="theme crit"><div class="idx">01</div><div class="body">
         <h3>"Any non-moving start" is not met. Swing-up is required.</h3>
-        <p>θ=π is a non-moving start and a stable equilibrium. No controller linearized about upright leaves it. Basin at 20 N / ±2.4 m is 44°; at 10 N, 35°; even unlimited force fails past 64°. Energy-shaping swing-up (Åström–Furuta) plus the existing LQR catch handles π in 2–3 s, but needs a deterministic kick at exactly π and hysteresis on the switch. The hardest start is near 85°, not π.</p>
+        <p>θ=π is a non-moving start and a stable equilibrium. No controller linearized about upright leaves it. Basin at 20 N / ±2.4 m is 43°; at 10 N, 35°; even unlimited force fails past 64°. Energy-shaping swing-up (Åström–Furuta) plus the existing LQR catch handles π in 2–3 s, but needs a deterministic kick at exactly π and hysteresis on the switch. The hardest start is near 85°, not π.</p>
         <div class="hit"><span class="chip c">Critical</span><span class="src">01 · 04 · 05</span></div>
       </div></div>
 
@@ -168,7 +176,7 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
 
       <div class="theme"><div class="idx">06</div><div class="body">
         <h3>Zero force is not a safe state for an inverted pendulum.</h3>
-        <p>Open-loop pole at 3.97 rad/s: tilt e-folds every 0.25 s. Survivable outage at zero force is 0.5–1.3 s depending on angle; hold-last is strictly worse. A parameter flipped to Inf yields zero force forever. Define the fault response as "reload golden and resume within T ≤ ~300 ms", and put the freshness check on the actuator side in simulated ticks. An in-thread watchdog cannot see its own hang, and in a lockstep sim the hang scenario does not even exist unless the plant keeps integrating on the stale command.</p>
+        <p>Open-loop pole at 3.97 rad/s: tilt e-folds every 0.25 s. Survivable outage at zero force is 0.3–1.3 s depending on angle (the build later measured 0.6–1.3 s of recoverable stall from 1° to 30°); hold-last is strictly worse. A parameter flipped to Inf yields zero force forever. Define the fault response as "reload golden and resume within T ≤ ~300 ms", and put the freshness check on the actuator side in simulated ticks. An in-thread watchdog cannot see its own hang, and in a lockstep sim the hang scenario does not even exist unless the plant keeps integrating on the stale command.</p>
         <div class="hit"><span class="chip h">High</span><span class="src">01 · 02 · 04 · 05</span></div>
       </div></div>
 
@@ -186,7 +194,7 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
 
       <div class="theme"><div class="idx">09</div><div class="body">
         <h3>The staged modes climb the wrong axis; pick one data scheme.</h3>
-        <p>baseline → checksum → secded stages stronger codes on the same fault class, so stage 2 exists only to be beaten. Each stage should close a new class: none → data → data+compute → full. For the data scheme: CRC-32C (HD=6 at 416 bits, 2.9 ns with the intrinsic) over Fletcher-32 (HD=3), and Hsiao(39,32) on the F32 words using the OpenTitan encoder with an exhaustive codec test. Order matters: SECDED alone miscorrects 60–69% of triple-bit patterns, so decode first, then CRC over the corrected plaintext. Write corrected words back or "Corrected" counts inflate every tick.</p>
+        <p>baseline → checksum → secded stages stronger codes on the same fault class, so stage 2 exists only to be beaten. Each stage should close a new class: none → data → data+compute → full. For the data scheme: CRC-32C (HD=6 at 416 bits, 2.9 ns with the intrinsic) over Fletcher-32 (HD=3), and Hsiao(39,32) on the F32 words using a published encoder mask set with an exhaustive codec test (as built: the first 32 weight-3 columns in ascending order; see SPEC-01 §6). Order matters: SECDED alone miscorrects 60–69% of triple-bit patterns, so decode first, then CRC over the corrected plaintext. Write corrected words back or "Corrected" counts inflate every tick.</p>
         <div class="hit"><span class="chip h">High</span><span class="src">02 · 05</span></div>
       </div></div>
 
@@ -461,7 +469,7 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
         <tr><td>basin</td><td class="what">θ₀ 0–180° by 1°, x₀ = 0</td><td class="hrs">181</td><td class="hrs">24.3%</td><td class="hrs">3.57 s / 4.26 s</td><td>Edge at 43°. Every failure is a track exit, never a fall: the pole stays up, the cart runs out of rail.</td></tr>
         <tr><td>grid</td><td class="what">θ₀ −180–180° by 2° × x₀ {−1, −0.5, 0, 0.5, 1} m</td><td class="hrs">905</td><td class="hrs">23.3%</td><td class="hrs">3.57 s / 4.24 s</td><td>Basin skews with x₀: at x₀ = −1 m it is +48° / −32°. The cart needs room on the side it must first move toward.</td></tr>
         <tr><td>mistune</td><td class="what">±10% cart mass, pole mass, half-length (27 corners) × θ₀ {5, 15, 25, 35}°</td><td class="hrs">108</td><td class="hrs">100%</td><td class="hrs">3.67 s / 4.12 s</td><td>All corners pass. Confirms report 01: the ±10% sweep proves nothing for LQR; what breaks is the swing-up switch and friction, neither modelled yet.</td></tr>
-        <tr><td>rate</td><td class="what">dt {2, 5, 10, 20, 50} ms × substeps {1, 4} × θ₀ 0–60°</td><td class="hrs">130</td><td class="hrs">69.2%</td><td class="hrs">3.47 s / 4.29 s</td><td>Identical 40° basin at every tick rate. Gains designed at 10 ms survive a 50 ms tick. Plant sub-stepping changes nothing.</td></tr>
+        <tr><td>rate</td><td class="what">dt {2, 5, 10, 20, 50} ms × substeps {1, 4} × θ₀ 0–60°</td><td class="hrs">130</td><td class="hrs">69.2%</td><td class="hrs">3.47 s / 4.29 s</td><td>Identical basin at every tick rate (40° passes, 45° fails on this 5° grid). Gains designed at 10 ms survive a 50 ms tick. Plant sub-stepping changes nothing.</td></tr>
       </tbody>
     </table>
     </div>
@@ -477,7 +485,7 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
       <div class="card"><div class="k"><span>01 · Control theory</span><span>11 findings</span></div>
         <h3>One spec failure, several stories that fall apart under a controls reviewer.</h3>
         <ul>
-          <li><b>Basin is 44°</b>, not "any". Swing-up plus LQR catch is 2–3 h.</li>
+          <li><b>Basin is 43°</b>, not "any". Swing-up plus LQR catch is 2–3 h.</li>
           <li><b>±10% sweep proves nothing</b>: LQR survives all 27 corners easily. What breaks is the swing-up switch (+10% length failed from 30°) and Coulomb friction (4.5° hunting).</li>
           <li><b>θ is never wrapped</b>: θ=2π reads as a 360° error.</li>
           <li><b>Success check hides SDC</b>: a flip that zeroes K_x passed because only θ is checked. Require |x| → 0 too.</li>
@@ -491,7 +499,7 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
         <ul>
           <li><b>Register promotion at -O2</b>, verified. Volatile storage + decode-to-locals.</li>
           <li><b>One blob for gains and state re-encodes corruption as valid.</b> Params get a fixed reference CRC never recomputed; State re-encoded only after invariants pass.</li>
-          <li><b>Golden copy in RAM</b> has an 8.5%/year chance of a latent flip at LEO rates if unscrubbed. Use <code>params_default()</code> from literals and pin its CRC in a test.</li>
+          <li><b>Golden copy in RAM</b> has an 8.5%/year chance of a latent flip at LEO rates if unscrubbed. Use <code>params_default()</code> from literals and pin its CRC in a test. (As built differs: the golden is rebuilt from the model and checked against a CRC pinned at init; see SPEC-01 §6.)</li>
           <li><b>Sensor path bypasses every layer</b>: add analytic redundancy (|Δθ − θ̇·dt| ≤ tol).</li>
           <li>Includes a 6-step "if you only have 2 hours" order.</li>
         </ul>
@@ -546,9 +554,9 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
         <tr class="now"><td>1</td><td class="what">Move <code>FORCE_LIMIT_N</code> / <code>SAFE_FORCE_N</code> to compile-time constants applied after <code>step()</code>; add per-field range table; wrap θ to (−π, π]</td><td>Themes 03, 01 (wrap)</td><td class="hrs">30 min</td></tr>
         <tr class="now"><td>2</td><td class="what">Solve the DARE in C++ at init; keep the scipy script as a cross-check test (K must match to 1e-4)</td><td>Theme 05</td><td class="hrs">45 min</td></tr>
         <tr class="now"><td>3</td><td class="what">Energy swing-up mode + hysteresis switch to LQR; deterministic kick at π; IC grid θ₀ ∈ (−π, π] × x₀ ∈ {−1, 0, 1}</td><td>Theme 01</td><td class="hrs">2–3 h</td></tr>
-        <tr class="now"><td>4</td><td class="what">Protection wrapper: <code>volatile</code> words → decode to locals → <code>step()</code> → invariants → encode State only; Params CRC fixed at init; <code>#ifdef __FAST_MATH__ #error</code></td><td>Themes 07, 09</td><td class="hrs">45 min</td></tr>
-        <tr><td>5</td><td class="what">CRC-32C + Hsiao(39,32) from OpenTitan masks; decode-then-CRC order; write-back on SEC; exhaustive codec test (39 + 741 + 9,139 patterns)</td><td>Theme 09</td><td class="hrs">40 min</td></tr>
-        <tr><td>6</td><td class="what">Recovery = verified <code>params_default()</code> reload + bumpless reseed; 4-state FDIR machine with persistence and a latched SAFE; protect mode/counters</td><td>Themes 02, 08</td><td class="hrs">1 h</td></tr>
+        <tr class="now"><td>4</td><td class="what">Protection wrapper: <code>volatile</code> words → decode to locals → <code>step()</code> → invariants → encode State only (as built: State is re-encoded every tick; SPEC-01 §6); Params CRC fixed at init; <code>#ifdef __FAST_MATH__ #error</code></td><td>Themes 07, 09</td><td class="hrs">45 min</td></tr>
+        <tr><td>5</td><td class="what">CRC-32C + Hsiao(39,32) from a published mask set (as built: the first 32 weight-3 columns; SPEC-01 §6); decode-then-CRC order; write-back on SEC; exhaustive codec test (39 + 741 + 9,139 patterns)</td><td>Theme 09</td><td class="hrs">40 min</td></tr>
+        <tr><td>6</td><td class="what">Recovery = verified <code>params_default()</code> reload + bumpless reseed (as built: <code>params_design()</code> from the model, SPEC-01 §4); 4-state FDIR machine with persistence and a latched SAFE; protect mode/counters</td><td>Themes 02, 08</td><td class="hrs">1 h</td></tr>
         <tr><td>7</td><td class="what">Actuator-side freshness monitor in sim ticks; stall injection with ZOH on last u; recovery deadline ≤ 300 ms in the test</td><td>Theme 06</td><td class="hrs">45 min</td></tr>
         <tr><td>8</td><td class="what">Split Verification (exhaustive, at rest) from Assessment (all state, N≈3,000/mode, paired fault list, Wilson CIs, post-injection window vs fault-free twin); in-repo PRNG + <code>faults.csv</code>; <code>-ffp-contract=off</code></td><td>Themes 04, 10</td><td class="hrs">2 h</td></tr>
         <tr><td>9</td><td class="what">Dual-execute compare of <code>step()</code> (pure, so ~free), input plausibility guard, degradation ladder swing-up → LQR → safe</td><td>Definition breadth (05)</td><td class="hrs">1.5 h</td></tr>
@@ -562,8 +570,8 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
   <section>
     <div class="cols">
       <div>
-        <div class="sec-eyebrow">Baseline controller · verified this session</div>
-        <h2>What exists now</h2>
+        <div class="sec-eyebrow">Baseline controller · verified 2026-09-29 (historical)</div>
+        <h2>What existed on 2026-09-29</h2>
         <div class="status">
           <div><div class="k">Build</div><div class="v">C++11 · -Wall -Wextra -Wpedantic -Werror · -fno-exceptions -fno-rtti</div></div>
           <div><div class="k">Tests</div><div class="v">ALL TESTS PASSED (5/5)</div></div>
@@ -605,8 +613,8 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
         </ul>
       </div>
       <div>
-        <div class="sec-eyebrow">Sim baseline · built this session</div>
-        <h2>What the sim gives you now</h2>
+        <div class="sec-eyebrow">Sim baseline · built 2026-09-29 (historical)</div>
+        <h2>What the sim gave on 2026-09-29</h2>
         <ul>
           <li><b>Replay viewer</b> <code>sim/render.py</code>: cart, pole, force arrow, θ / x / u traces, and the five force terms (x, ẋ, θ, θ̇ gains plus the integrator) with a P / D / I readout. Simulated time only; <code>--speed</code> to slow it down.</li>
           <li><b>Scenario runner</b> <code>sim/backtest.py</code>: JSON parameter sets, cartesian sweeps, stats after every run (success rate, settle time, peak |x| and |u|, saturation, per-axis breakdown, basin edges), CSV and outcome maps.</li>
@@ -619,6 +627,6 @@ pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--pane
   </section>
 
   <div class="foot">
-    <span class="src">Sources: ~90 cited across the five reports (Åström–Furuta, Tedrake, Florian, SWIFT/EDDI/CFCSS, ARGOS, COAST, Koopman CRC Zoo, OpenTitan, NASA-HDBK-1002, cFS HS/LC/CS, F´ Health/PrmDb, JPL P10)</span>
+    <span class="src">Sources: ~90 cited across the five reports (Åström–Furuta, Tedrake, Florian, SWIFT/EDDI/CFCSS, ARGOS, COAST, Koopman CRC Zoo, Hsiao (1970), NASA-HDBK-1002, cFS HS/LC/CS, F´ Health/PrmDb, JPL P10)</span>
   </div>
 </div>
