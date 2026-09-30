@@ -17,8 +17,8 @@
 namespace fsw {
 
 enum Detection { DET_NONE = 0, DET_SEC = 1, DET_DED = 2, DET_CRC = 3, DET_RANGE = 4, DET_MISMATCH = 5,
-                 DET_NONFINITE = 6, DET_STALL = 7, DET_GOLDEN = 8 };
-enum FdirState { FDIR_NOMINAL = 0, FDIR_RECOVERING = 1, FDIR_SAFE = 2 };
+                 DET_NONFINITE = 6, DET_STALL = 7, DET_GOLDEN = 8, DET_INPUT = 9 };
+enum FdirState { FDIR_NOMINAL = 0, FDIR_RECOVERING = 1, FDIR_DEGRADED = 2, FDIR_SAFE = 3 };
 
 static const U32 PARAM_WORDS = static_cast<U32>(sizeof(Params) / 4U);
 static const U32 STATE_WORDS = static_cast<U32>(sizeof(State) / 4U);
@@ -47,8 +47,11 @@ struct Runtime {
     U32 fdir_state, fdir_state_inv; /**< (v, ~v): a flipped state word reads as SAFE, never as "more permissive" */
     U32 det_count, det_count_inv;   /**< detections in the current persistence window, (v, ~v) */
     U32 window_start;               /**< tick the window opened */
-    U32 clean_ticks;                /**< consecutive clean ticks while RECOVERING */
+    U32 clean_ticks;                /**< consecutive clean ticks while RECOVERING or DEGRADED */
     U32 stall_pending;              /**< harness reported skipped ticks; handled on the next decode */
+    F32 last_x, last_theta, last_thetadot; /**< last accepted sensor sample (input plausibility guard) */
+    U32 have_last;                  /**< last_* holds an accepted sample */
+    U32 input_rejects;              /**< consecutive rejected samples */
     U32 sec_total, reload_total, det_total, tick;
 };
 
@@ -58,17 +61,23 @@ bool runtime_init(Runtime& rt, const PlantParams& model);
 
 /**
  * @brief Decode the stores into local copies (SECDED -> CRC -> range table). Any detection reloads the verified
- *        golden into `p`, reseeds `s`, and moves FDIR to RECOVERING (or SAFE on persistence / untrusted golden).
+ *        golden into `p`, reseeds `s`, and moves FDIR to RECOVERING, or DEGRADED on a second detection within the
+ *        window, or SAFE on persistence / an untrusted golden / any detection while DEGRADED.
  * @return false when FDIR is SAFE (the caller still calls runtime_control, which outputs the safe command).
  */
 bool runtime_decode(Runtime& rt, Params& p, State& s, TickTlm& t);
 
 /**
  * @brief Dual-execute step() on (p1, s) and (p2, s); a mismatch is a detection (compute window). Then guard the
- *        output, run FDIR bookkeeping and re-encode the state store. Flight code passes the same Params twice; a
- *        harness may pass a corrupted copy as p1 to test the compare.
+ *        output, run FDIR bookkeeping and re-encode the state store. Protected build: the sensor sample is first
+ *        checked for plausibility (finite, in range, consistent with the last accepted sample); a reject holds the
+ *        last accepted sample and is a DET_INPUT detection without a golden reload, a second consecutive reject
+ *        reloads.
+ *        The DEGRADED law (swing-up inhibited, output clamp halved) is applied here after step(). Flight code passes
+ *        the same Params twice; a harness may pass a corrupted copy as p1 to test the compare.
  */
-void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, const Input& in, Output& out, TickTlm& t);
+void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, const Input& in, Output& out,
+                     TickTlm& t);
 
 /** @brief The flight-side one-call tick: decode then control with the same copy in both lanes. */
 void runtime_tick(Runtime& rt, const Input& in, Output& out, TickTlm& t);

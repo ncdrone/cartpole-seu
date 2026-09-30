@@ -27,5 +27,9 @@ add_executable(test_controller tests/test_controller.cpp src/Runtime.cpp)
 target_compile_definitions(test_controller PRIVATE FSW_PROTECT=1)
 target_link_libraries(test_controller fsw)
 
+add_executable(test_fdir tests/test_fdir.cpp src/Runtime.cpp)
+target_compile_definitions(test_fdir PRIVATE FSW_PROTECT=1)
+target_link_libraries(test_fdir fsw)
+
 add_executable(test_protect tests/test_protect.cpp)
 target_link_libraries(test_protect fsw)

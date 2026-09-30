@@ -62,6 +62,12 @@ static const F32 SW_KICK_EPS   = 1e-3f;   /**< |thetadot*cos| below this: determ
 static const U32 FDIR_WINDOW_TICKS   = 200U;  /**< persistence window (2 s at 10 ms) */
 static const U32 FDIR_MAX_DETECTIONS = 3U;    /**< detections within the window -> SAFE (latched) */
 static const U32 FDIR_CLEAN_TICKS    = 50U;   /**< clean ticks in RECOVERING -> NOMINAL */
+static const U32 FDIR_DEGRADED_CLEAN_TICKS = 200U;  /**< clean ticks in DEGRADED -> NOMINAL */
+
+/* Input plausibility guard (protected build) */
+static const F32 PLAUS_MAX_RATE  = 25.0f;   /**< |thetadot| above this is not a physical sample [rad/s] */
+static const F32 PLAUS_THETA_TOL = 0.05f;   /**< allowed |dtheta - trapezoid(thetadot)*dt| between accepted samples [rad] */
+static const F32 DEGRADED_CLAMP_FRAC = 0.5f;  /**< DEGRADED output clamp = FORCE_LIMIT_N * this */
 static const U32 STALE_MAX_TICKS     = 10U;   /**< actuator holds a stale command this long (100 ms), then fallback */
 
 /* Demo / test */

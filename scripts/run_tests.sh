@@ -28,6 +28,7 @@ say "tests for envclass $ENVCLASS"
 say "1/6 unit tests"
 "$BUILD/test_controller" | tail -1 | grep -q "ALL TESTS PASSED" || die "test_controller failed"; ok "test_controller"
 "$BUILD/test_protect" | tail -1 | grep -q "ALL PROTECT TESTS PASSED" || die "test_protect failed"; ok "test_protect (exhaustive SECDED 1/2/3-bit, CRC-32C, store)"
+"$BUILD/test_fdir" | tail -1 | grep -q "ALL FDIR TESTS PASSED" || die "test_fdir failed"; ok "test_fdir (FDIR state machine)"
 
 say "2/6 demo schema"
 OUT="$("$BUILD/cartpole_demo" --theta0 0.2 --x0 0.5 --seconds 1)" || die "demo exited non-zero"

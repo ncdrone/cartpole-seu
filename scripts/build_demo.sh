@@ -72,7 +72,7 @@ say "3/6 build (Release, C++14, -O2 -ffp-contract=off, warnings are errors)"
 [ "$CLEAN" = 1 ] && rm -rf "$BUILD"
 cmake -S "$FSW" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release >/dev/null
 if cmake --build "$BUILD" 2>&1 | grep -E "error|warning"; then die "build produced warnings/errors above"; fi
-ok "fsw/build/cartpole_demo (protected), cartpole_baseline, test_controller, test_protect"
+ok "fsw/build/cartpole_demo (protected), cartpole_baseline, test_controller, test_protect, test_fdir"
 
 say "4/6 stamp"
 esc(){ printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
@@ -85,7 +85,7 @@ JSON
 ok "fsw/build/build_info.json ($ENVCLASS)"
 
 say "5/6 verify"
-"$BUILD/test_controller" >/dev/null && "$BUILD/test_protect" >/dev/null || die "unit tests failed"; ok "unit tests (controller + protect)"
+"$BUILD/test_controller" >/dev/null && "$BUILD/test_protect" >/dev/null && "$BUILD/test_fdir" >/dev/null || die "unit tests failed"; ok "unit tests (controller + protect + fdir)"
 CSV="$BUILD/verify-demo-1s.csv"; "$BUILD/cartpole_demo" --theta0 0.2 --x0 0.5 --seconds 1 > "$CSV" || die "demo failed"
 [ "$(head -1 "$CSV")" = "tick,t,x,xdot,theta,thetadot,u,fault,u_x,u_xd,u_th,u_thd,u_i,integ,sat,mode,det,fdir,sec,reload" ] && [ "$(wc -l < "$CSV" | tr -d ' ')" = 101 ] || die "CSV schema"
 ok "demo runs, CSV schema intact"
