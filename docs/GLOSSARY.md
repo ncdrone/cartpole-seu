@@ -126,7 +126,7 @@
 | **Svc::Health** | | F´ component that pings other components and strokes the hardware watchdog only while all reply. |
 | **HS / LC / CS** | Health & Safety / Limit Checker / Checksum (cFS apps) | HS monitors app execution and services the watchdog; LC evaluates limits with persistence counts; CS background-checksums memory and code. Precedents cited in reports 02 and 04. |
 | **FM** | Fault Management | The discipline of detecting, isolating and responding to faults. NASA-HDBK-1002 is the handbook. |
-| **FDIR** | Fault Detection, Isolation and Recovery | The runtime state machine that acts on faults. Ours: NOMINAL → RECOVERING → DEGRADED → SAFE. |
+| **FDIR** | Fault Detection, Isolation and Recovery | The runtime state machine that acts on faults. Ours: NOMINAL → RECOVERING → DEGRADED → SAFE. DEGRADED = swing-up inhibited, output clamp halved. |
 | **Persistence (three-strike)** | | Requiring a fault indication to repeat N times before acting, so noise or a single SEU in the detector does not trigger a response. |
 | **Escalation** | | Stronger responses on repeated faults: retry → degrade → safe mode → reset. |
 | **Hysteresis** | | Requiring a different (stricter) condition to leave a state than to enter it, so the system does not chatter. |

@@ -18,7 +18,7 @@ namespace fsw {
 
 enum Detection { DET_NONE = 0, DET_SEC = 1, DET_DED = 2, DET_CRC = 3, DET_RANGE = 4, DET_MISMATCH = 5,
                  DET_NONFINITE = 6, DET_STALL = 7, DET_GOLDEN = 8 };
-enum FdirState { FDIR_NOMINAL = 0, FDIR_RECOVERING = 1, FDIR_SAFE = 2 };
+enum FdirState { FDIR_NOMINAL = 0, FDIR_RECOVERING = 1, FDIR_DEGRADED = 2, FDIR_SAFE = 3 };
 
 static const U32 PARAM_WORDS = static_cast<U32>(sizeof(Params) / 4U);
 static const U32 STATE_WORDS = static_cast<U32>(sizeof(State) / 4U);
@@ -47,7 +47,7 @@ struct Runtime {
     U32 fdir_state, fdir_state_inv; /**< (v, ~v): a flipped state word reads as SAFE, never as "more permissive" */
     U32 det_count, det_count_inv;   /**< detections in the current persistence window, (v, ~v) */
     U32 window_start;               /**< tick the window opened */
-    U32 clean_ticks;                /**< consecutive clean ticks while RECOVERING */
+    U32 clean_ticks;                /**< consecutive clean ticks while RECOVERING or DEGRADED */
     U32 stall_pending;              /**< harness reported skipped ticks; handled on the next decode */
     U32 sec_total, reload_total, det_total, tick;
 };

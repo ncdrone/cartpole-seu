@@ -6,16 +6,20 @@
 namespace fsw {
 
 /* FDIR state codes: Hamming distance 16 apart; anything else reads as SAFE. */
-static const U32 C_NOMINAL = 0x5A5A5A5AU, C_RECOVERING = 0xA5A5A5A5U, C_SAFE = 0xC3C3C3C3U;
+static const U32 C_NOMINAL = 0x5A5A5A5AU, C_RECOVERING = 0xA5A5A5A5U, C_DEGRADED = 0x3C3C3C3CU, C_SAFE = 0xC3C3C3C3U;
 
 FdirState runtime_fdir(const Runtime& rt) {
     if ((rt.fdir_state ^ rt.fdir_state_inv) != 0xFFFFFFFFU) return FDIR_SAFE;   // the state word itself is corrupt
     if (rt.fdir_state == C_NOMINAL) return FDIR_NOMINAL;
     if (rt.fdir_state == C_RECOVERING) return FDIR_RECOVERING;
+    if (rt.fdir_state == C_DEGRADED) return FDIR_DEGRADED;
     return FDIR_SAFE;
 }
 static void fdir_set(Runtime& rt, FdirState s) {
-    const U32 c = (s == FDIR_NOMINAL) ? C_NOMINAL : ((s == FDIR_RECOVERING) ? C_RECOVERING : C_SAFE);
+    U32 c = C_SAFE;
+    if (s == FDIR_NOMINAL) c = C_NOMINAL;
+    else if (s == FDIR_RECOVERING) c = C_RECOVERING;
+    else if (s == FDIR_DEGRADED) c = C_DEGRADED;
     rt.fdir_state = c; rt.fdir_state_inv = ~c;
 }
 
@@ -74,8 +78,12 @@ static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm&
     if ((rt.det_count ^ rt.det_count_inv) != 0xFFFFFFFFU) { fdir_set(rt, FDIR_SAFE); return; }   // counter corrupt
     rt.det_count++; rt.det_count_inv = ~rt.det_count;
     if (rt.det_count >= cfg::FDIR_MAX_DETECTIONS) { fdir_set(rt, FDIR_SAFE); return; }           // persistence
+    const FdirState prev = runtime_fdir(rt);
+    if (prev == FDIR_DEGRADED) { fdir_set(rt, FDIR_SAFE); return; }                              // any detection while degraded
     if (!reload_golden(rt, p, s)) { t.det = DET_GOLDEN; fdir_set(rt, FDIR_SAFE); return; }
-    fdir_set(rt, FDIR_RECOVERING); rt.clean_ticks = 0U;
+    // a second detection inside the window while still recovering escalates to DEGRADED
+    fdir_set(rt, (prev == FDIR_RECOVERING && rt.det_count >= 2U) ? FDIR_DEGRADED : FDIR_RECOVERING);
+    rt.clean_ticks = 0U;
 }
 
 #endif  /* FSW_PROTECT: reload + on_detection */
@@ -126,9 +134,18 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
             out.force = cfg::SAFE_FORCE_N; out.fault = 1U; on_detection(rt, DET_NONFINITE, pr, s, t);
         }
     }
+    if (runtime_fdir(rt) == FDIR_DEGRADED) {
+        // DEGRADED law: swing-up inhibited, output clamp halved (applied after step(), not inside it)
+        if (s.mode == MODE_SWING) { out.force = cfg::SAFE_FORCE_N; out.fault = 1U; }
+        const F32 lim = cfg::FORCE_LIMIT_N * cfg::DEGRADED_CLAMP_FRAC;
+        if (out.force > lim) { out.force = lim; out.saturated = 1U; }
+        else if (out.force < -lim) { out.force = -lim; out.saturated = 1U; }
+    }
     encode_state(rt, s);
     if (t.det == DET_NONE || t.det == DET_SEC) {
-        if (runtime_fdir(rt) == FDIR_RECOVERING && ++rt.clean_ticks >= cfg::FDIR_CLEAN_TICKS) fdir_set(rt, FDIR_NOMINAL);
+        const FdirState fs = runtime_fdir(rt);
+        if (fs == FDIR_RECOVERING && ++rt.clean_ticks >= cfg::FDIR_CLEAN_TICKS) fdir_set(rt, FDIR_NOMINAL);
+        else if (fs == FDIR_DEGRADED && ++rt.clean_ticks >= cfg::FDIR_DEGRADED_CLEAN_TICKS) fdir_set(rt, FDIR_NOMINAL);
     }
 #else
     (void)p2;

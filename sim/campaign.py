@@ -42,9 +42,10 @@ def classify(r):
         return "DUE"
     detected = r["det"] not in ("none",)
     corrected = r["det"] == "SEC" and r["reload"] == 0
-    if r["fdir"] == 2:
+    if r["fdir"] == 3:
         return "DUE" if r["plant"] == "FAIL" else "recovered"       # latched SAFE with the pole still up counts as recovered here
     if r["plant"] == "OK":
+        if r["fdir"] == 2: return "recovered"                          # DEGRADED, pole still up
         if not detected: return "masked"
         if corrected: return "corrected"
         return "recovered"
