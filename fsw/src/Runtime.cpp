@@ -71,7 +71,7 @@ static bool reload_golden(Runtime& rt, Params& p, State& s) {
 }
 
 /* (v, ~v) read: a mismatch means the counter is corrupt, which is SAFE. */
-static bool mirror_ok(Runtime& rt, U32 v, U32 inv) {
+static bool mirror_ok_else_safe(Runtime& rt, U32 v, U32 inv) {
     if ((v ^ inv) != 0xFFFFFFFFU) { fdir_set(rt, FDIR_SAFE); return false; }
     return true;
 }
@@ -81,9 +81,9 @@ static void set_clean_ticks(Runtime& rt, U32 v) { rt.clean_ticks = v; rt.clean_t
 static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm& t, bool reload = true) {
     if (t.det == DET_NONE || t.det == DET_SEC) t.det = static_cast<U8>(d);
     rt.det_total++;
-    if (!mirror_ok(rt, rt.window_start, rt.window_start_inv)) return;                            // window anchor corrupt
+    if (!mirror_ok_else_safe(rt, rt.window_start, rt.window_start_inv)) return;                            // window anchor corrupt
     if (rt.tick - rt.window_start > cfg::FDIR_WINDOW_TICKS) { set_window_start(rt, rt.tick); rt.det_count = 0U; rt.det_count_inv = ~0U; }   // window expired: re-anchor, reset both words
-    if (!mirror_ok(rt, rt.det_count, rt.det_count_inv)) return;                                  // counter corrupt
+    if (!mirror_ok_else_safe(rt, rt.det_count, rt.det_count_inv)) return;                                  // counter corrupt
     if (rt.det_count == 0U) set_window_start(rt, rt.tick);                                          // window anchors at the first detection
     rt.det_count++; rt.det_count_inv = ~rt.det_count;
     if (rt.det_count >= cfg::FDIR_MAX_DETECTIONS) { fdir_set(rt, FDIR_SAFE); return; }           // persistence
@@ -161,7 +161,6 @@ static bool guard_input(Runtime& rt, Input& inp, Params& pr, State& s, TickTlm& 
                 inp.thetadot = clampf(inp.thetadot, cfg::PLAUS_MAX_RATE);
             }
         }
-        if (!std::isfinite(inp.xdot)) inp.xdot = 0.0f;
         const bool repeat = rt.input_rejects > 0U;
         rt.input_rejects++;
         on_detection(rt, DET_INPUT, pr, s, t, repeat);  // first reject: no reload (the store is fine); a persistent one escalates via the reload path
@@ -208,7 +207,7 @@ static void count_clean_tick(Runtime& rt, const TickTlm& t, Output& out) {
     if (t.det != DET_NONE && t.det != DET_SEC) return;
     const FdirState fs = runtime_fdir(rt);
     if (fs != FDIR_RECOVERING && fs != FDIR_DEGRADED) return;
-    if (!mirror_ok(rt, rt.clean_ticks, rt.clean_ticks_inv)) { out.force = cfg::SAFE_FORCE_N; out.fault = 1U; return; }
+    if (!mirror_ok_else_safe(rt, rt.clean_ticks, rt.clean_ticks_inv)) { out.force = cfg::SAFE_FORCE_N; out.fault = 1U; out.saturated = 0U; return; }
     const U32 n = rt.clean_ticks + 1U;
     set_clean_ticks(rt, n);
     if (n >= (fs == FDIR_RECOVERING ? cfg::FDIR_CLEAN_TICKS : cfg::FDIR_DEGRADED_CLEAN_TICKS)) fdir_set(rt, FDIR_NOMINAL);
@@ -219,7 +218,7 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
     out.fault = 0U; out.saturated = 0U; out.pad[0] = 0U; out.pad[1] = 0U;
     if (runtime_fdir(rt) == FDIR_SAFE) {
         out.force = cfg::SAFE_FORCE_N; out.fault = 1U; t.fdir = FDIR_SAFE;
-        t.mode = (s.mode <= MODE_BALANCE) ? s.mode : 0U;   // a decodable mode, else 0
+        t.mode = 0U;   // SAFE ticks report mode 0 (fail-safe telemetry)
         t.sec_total = rt.sec_total; t.reload_total = rt.reload_total; t.det_total = rt.det_total;
         return;
     }

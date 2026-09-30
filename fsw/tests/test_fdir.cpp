@@ -194,7 +194,7 @@ int main() {
             assert(t.det == DET_INPUT);
             assert(rt.reload_total == 0U);
             assert(runtime_fdir(rt) == FDIR_RECOVERING);
-            if (c == 4U) assert(std::fabs(o.force) <= cfg::FORCE_LIMIT_N && o.fault == 0U);   // xdot held, not used
+            if (c == 4U) assert(std::fabs(o.force) <= cfg::FORCE_LIMIT_N && o.fault == 0U && o.saturated == 0U);   // xdot held, not clamped
             if (c == 3U) {
                 runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, bads[c], o, t);
                 assert(t.det == DET_INPUT);
@@ -224,6 +224,7 @@ int main() {
             std::memset(&p, 0xA5, sizeof p); std::memset(&s, 0xA5, sizeof s);   // a caller's garbage must not reach the output
             const bool ok = runtime_decode(rt, p, s, t);
             assert(!ok);
+            assert(s.mode == 0U && p.k[0] == cfg::GAIN_X);   // decode_safe filled p and s
             runtime_control(rt, p, p, s, make_in(0.02f), o, t);
             assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U && t.mode <= 1U);
         }
@@ -236,6 +237,7 @@ int main() {
         rt.clean_ticks ^= 1U;
         tick(rt, 0.02f, o, t);
         assert(runtime_fdir(rt) == FDIR_SAFE && t.fdir == FDIR_SAFE);
+        assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U);
         tick(rt, 0.02f, o, t);
         assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U);
         std::printf("(o) clean_ticks mirror ok\n");
