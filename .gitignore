@@ -12,8 +12,6 @@ __pycache__/
 research/
 docs/*
 # ...except what ships
-!docs/SPEC-01-system-build.md
-!docs/SPEC-02-softfault-testing.md
 !docs/GLOSSARY.md
 !docs/how-it-works.html
 !docs/system-diagram.html

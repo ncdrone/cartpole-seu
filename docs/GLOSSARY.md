@@ -1,6 +1,6 @@
 # Glossary: terms and acronyms used in this project
 
-**Scope:** every acronym and term of art that appears in `docs/`, `fsw/` and `sim/`. Grouped by topic. Where a term names a specific design decision in this project, the entry says what we do with it. "The design reviews" are the internal reviews summarised in `research_summary.html`; they are not shipped.
+**Scope:** every acronym and term of art that appears in `specs/`, `docs/`, `fsw/` and `sim/`. Grouped by topic. Where a term names a specific design decision in this project, the entry says what we do with it. "The design reviews" are the internal reviews summarised in `research_summary.html`; they are not shipped.
 
 ---
 
@@ -221,7 +221,7 @@
 
 | Term | Meaning |
 |---|---|
-| **SPEC-01 / SPEC-02** | The build spec and the soft-fault testing spec in `docs/`. |
+| **SPEC-01 / SPEC-02** | The build spec and the soft-fault testing spec in `specs/`. |
 | **Iteration 1 / 2** or **baseline / protected** | The two compile-time builds: `cartpole_baseline` (`FSW_PROTECT=0`) and `cartpole_demo` (`FSW_PROTECT=1`). |
 | **`Params`** | The POD struct of gains, swing-up settings, integrator/filter settings and model constants: 20 F32 words, 80 bytes. The force limit and safe force are compile-time constants, not `Params` words. |
 | **`State`** | The POD struct of mutable controller memory: integrator, filtered θ̇, tick, filter-init flag, mode, `pad[2]` (16 bytes). Re-encoded into the store every tick after `step()`. |

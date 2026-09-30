@@ -186,7 +186,8 @@ fsw/        flight core: Controller, Lqr, Protect (SECDED + CRC + store), Runtim
 sim/        render.py (window viewer), backtest.py, campaign.py (verification campaign), scenarios/ (grid, basin, mistune, repro), golden/
 bench/      bench tooling, not part of the core: serve.py + viewer.html (LAN browser viewer, used by --serve/--demo), pin_image.sh, rate.json
 scripts/    build_demo.sh, run_tests.sh, clean_up.sh, make_golden.sh, docker-entry.sh
-docs/       SPEC-01, SPEC-02, GLOSSARY.md, how-it-works.html, system-diagram.html
+specs/      SPEC-01-system-build.md, SPEC-02-softfault-testing.md
+docs/       GLOSSARY.md, how-it-works.html, system-diagram.html
 research_summary.html   synthesis of five independent reviews of the plan as of 2026-09-29 (historical; the reviews themselves are internal, not shipped)
 Dockerfile  pinned software constraint
 ```
