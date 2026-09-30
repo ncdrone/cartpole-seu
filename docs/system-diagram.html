@@ -429,7 +429,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
     <h2>FDIR state machine</h2>
     <p class="lede">Escalation by persistence, recovery with hysteresis, and a SAFE state that only a command can leave.</p>
     <figure>
-    <svg viewBox="0 0 1060 462" role="img" aria-label="FDIR state machine with four states. NOMINAL stays NOMINAL on a single-bit correction and counts it. Any detection (DED, CRC, range, dual-exec mismatch, guard trip, stale command, implausible sensor) moves NOMINAL to RECOVERING. M clean ticks return RECOVERING to NOMINAL. K detections in W ticks move RECOVERING to DEGRADED, and a high SEC count in W moves NOMINAL to DEGRADED. K clean windows return DEGRADED to NOMINAL. A detection or theta beyond its limit for P ticks moves DEGRADED to SAFE, which is latched; only an explicit two-step CLEAR command leaves SAFE. The state word is stored as value and complement with Hamming-distance-16 codes; any bad state word falls to SAFE.">
+    <svg viewBox="0 0 1060 462" role="img" aria-label="FDIR state machine with four states. NOMINAL stays NOMINAL on a single-bit correction and counts it. Any detection (DED, CRC, range, dual-exec mismatch, guard trip, stale command, implausible sensor) moves NOMINAL to RECOVERING. M clean ticks return RECOVERING to NOMINAL. A second detection within the 200-tick window moves RECOVERING to DEGRADED, where swing-up is inhibited and the output clamp is halved to 10 N. 200 clean ticks return DEGRADED to NOMINAL. A third detection in the window, or any detection while DEGRADED, moves to SAFE, which is latched and never exits. The state word is stored as value and complement with Hamming-distance-16 codes; any bad state word falls to SAFE.">
       <defs>
         <marker id="p5a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
         <marker id="p5o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b35"/></marker>
@@ -441,7 +441,7 @@ svg .mid{text-anchor:middle} svg .end{text-anchor:end}
       <rect class="bxo" x="430" y="30" width="230" height="100" rx="4"/>
       <text class="th o" x="444" y="56">RECOVERING</text><text class="s" x="444" y="76">golden reloaded, θ̇ reseeded</text><text class="s" x="444" y="92">integrator frozen</text><text class="dm" x="444" y="114">code 0xA5A5A5A5</text>
       <rect class="bx" x="430" y="300" width="230" height="100" rx="4"/>
-      <text class="th" x="444" y="326">DEGRADED</text><text class="s" x="444" y="346">golden gains, pure LQR,</text><text class="s" x="444" y="362">integrator off, tight clamp</text><text class="dm" x="444" y="384">code 0x3C3C3C3C</text>
+      <text class="th" x="444" y="326">DEGRADED</text><text class="s" x="444" y="346">swing-up inhibited,</text><text class="s" x="444" y="362">clamp halved (10 N)</text><text class="dm" x="444" y="384">code 0x3C3C3C3C</text>
       <rect class="bxs" x="780" y="170" width="220" height="100" rx="4"/><rect class="bxs" x="784" y="174" width="212" height="92" rx="3"/>
       <text class="th r" x="796" y="196">SAFE · latched</text><text class="s" x="796" y="216">force = 0 N, constant</text><text class="s" x="796" y="232">loop declared lost</text><text class="dm" x="796" y="254">code 0xC3C3C3C3</text>
       <!-- transitions -->

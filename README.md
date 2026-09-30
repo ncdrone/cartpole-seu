@@ -1,6 +1,6 @@
 # Cart-pole soft-fault controller
 
-A C++14 cart-pole controller (energy-shaping swing-up, then an LQR whose gains are solved on board) with a software-only soft-error protection ladder: SECDED-coded parameters and state, CRC, range table, dual execution, output guard, sensor plausibility guard, and a four-state FDIR. The same flight core (`fsw/`) builds on a Mac, a Raspberry Pi 5, a Jetson Orin and in a pinned Docker image; a baseline binary without protection runs beside it so every fault result is a comparison.
+A C++14 cart-pole controller (energy-shaping swing-up, then an LQR whose gains are solved on board) with a software-only soft-error protection ladder: SECDED-coded parameters and state, CRC, range table, dual execution, output guard, input plausibility guard, and a four-state FDIR. The same flight core (`fsw/`) builds on a Mac, a Raspberry Pi 5, a Jetson Orin and in a pinned Docker image; a baseline binary without protection runs beside it so every fault result is a comparison.
 
 ## Requirements and evidence
 

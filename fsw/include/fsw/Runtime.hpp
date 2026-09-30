@@ -61,19 +61,23 @@ bool runtime_init(Runtime& rt, const PlantParams& model);
 
 /**
  * @brief Decode the stores into local copies (SECDED -> CRC -> range table). Any detection reloads the verified
- *        golden into `p`, reseeds `s`, and moves FDIR to RECOVERING (or SAFE on persistence / untrusted golden).
+ *        golden into `p`, reseeds `s`, and moves FDIR to RECOVERING, or DEGRADED on a second detection within the
+ *        window, or SAFE on persistence / an untrusted golden / any detection while DEGRADED.
  * @return false when FDIR is SAFE (the caller still calls runtime_control, which outputs the safe command).
  */
 bool runtime_decode(Runtime& rt, Params& p, State& s, TickTlm& t);
 
 /**
  * @brief Dual-execute step() on (p1, s) and (p2, s); a mismatch is a detection (compute window). Then guard the
- *        output, run FDIR bookkeeping and re-encode the state store. Protected build: the sensor sample is first checked
- *        for plausibility (finite, in range, consistent with the last accepted sample); a reject holds the last
- *        accepted sample and is a DET_INPUT detection without a golden reload, a second consecutive reject reloads. Flight code passes the same Params twice; a
- *        harness may pass a corrupted copy as p1 to test the compare.
+ *        output, run FDIR bookkeeping and re-encode the state store. Protected build: the sensor sample is first
+ *        checked for plausibility (finite, in range, consistent with the last accepted sample); a reject holds the
+ *        last accepted sample and is a DET_INPUT detection without a golden reload, a second consecutive reject
+ *        reloads.
+ *        The DEGRADED law (swing-up inhibited, output clamp halved) is applied here after step(). Flight code passes
+ *        the same Params twice; a harness may pass a corrupted copy as p1 to test the compare.
  */
-void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, const Input& in, Output& out, TickTlm& t);
+void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, const Input& in, Output& out,
+                     TickTlm& t);
 
 /** @brief The flight-side one-call tick: decode then control with the same copy in both lanes. */
 void runtime_tick(Runtime& rt, const Input& in, Output& out, TickTlm& t);
