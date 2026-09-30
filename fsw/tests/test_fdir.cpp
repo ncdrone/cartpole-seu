@@ -198,6 +198,18 @@ int main() {
                 assert(rt.reload_total == 1U);
             }
         }
+        { // first-ever sample non-finite while the pole hangs: no invented upright sample, safe command, no reload
+            Runtime rt; init(rt); Params p; State s;
+            const Input nan_in = { 0.0f, 0.0f, nan, 0.0f, cfg::DT_S };
+            runtime_decode(rt, p, s, t); runtime_control(rt, p, p, s, nan_in, o, t);
+            assert(o.force == cfg::SAFE_FORCE_N && o.fault == 1U);
+            assert(t.det == DET_INPUT && rt.reload_total == 0U && rt.have_last == 0U);
+        }
+        { // persistent finite offset: third consecutive reject -> SAFE (the input guard's own reload keeps its reference)
+            Runtime rt; init(rt); tick(rt, 0.02f, o, t); tick(rt, 0.02f, o, t);
+            for (U32 i = 0; i < 3U; ++i) { tick(rt, 1.02f, o, t); assert(t.det == DET_INPUT); }
+            assert(runtime_fdir(rt) == FDIR_SAFE);
+        }
         std::printf("(m) plausibility rules ok\n");
     }
     std::printf("ALL FDIR TESTS PASSED\n");

@@ -68,7 +68,6 @@ static bool reload_golden(Runtime& rt, Params& p, State& s) {
     rt.p = p; rt.s = s;
 #endif
     rt.reload_total++;
-    rt.have_last = 0U; rt.input_rejects = 0U;            // sample history is untrusted after a reload
     return true;
 }
 
@@ -83,6 +82,8 @@ static void on_detection(Runtime& rt, Detection d, Params& p, State& s, TickTlm&
     const FdirState prev = runtime_fdir(rt);
     if (prev == FDIR_DEGRADED) { fdir_set(rt, FDIR_SAFE); return; }                              // any detection while degraded
     if (reload && !reload_golden(rt, p, s)) { t.det = DET_GOLDEN; fdir_set(rt, FDIR_SAFE); return; }
+    // sample history is untrusted after a store/compute reload; NOT after the input guard's own reload (a persistent input fault must keep escalating)
+    if (reload && d != DET_INPUT) { rt.have_last = 0U; rt.input_rejects = 0U; }
     // a second detection inside the window while still recovering escalates to DEGRADED
     fdir_set(rt, (prev == FDIR_RECOVERING && rt.det_count >= 2U) ? FDIR_DEGRADED : FDIR_RECOVERING);
     rt.clean_ticks = 0U;
@@ -140,17 +141,19 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
 #if FSW_PROTECT
     Params pr = p2;
     const Params* q1 = &p1; const Params* q2 = &p2;
+    bool skip = false;
     Input inp = in;                                     // local copy: the caller's sample is never modified
     if (!input_plausible(rt, inp)) {
         if (rt.have_last) { inp.x = rt.last_x; inp.theta = rt.last_theta; inp.thetadot = rt.last_thetadot; }   // hold the last accepted sample
-        else {  // nothing to hold (first sample, or history reset by a stall/reload): never invent an upright sample, use the
-                // rejected one with non-finite fields zeroed and x, thetadot clamped to their plausible limits
-            if (!std::isfinite(inp.x)) inp.x = 0.0f;
-            if (!std::isfinite(inp.theta)) inp.theta = 0.0f;
-            if (!std::isfinite(inp.thetadot)) inp.thetadot = 0.0f;
-            const F32 xl = cfg::TRACK_LIMIT_M + 0.5f;
-            inp.x = inp.x > xl ? xl : (inp.x < -xl ? -xl : inp.x);
-            inp.thetadot = inp.thetadot > cfg::PLAUS_MAX_RATE ? cfg::PLAUS_MAX_RATE : (inp.thetadot < -cfg::PLAUS_MAX_RATE ? -cfg::PLAUS_MAX_RATE : inp.thetadot);
+        else {  // nothing to hold (first sample, or history reset by a stall/reload). A non-finite field cannot be repaired without
+                // inventing a sample, so step() is skipped and the safe command is issued; otherwise the rejected sample is used
+                // with x and thetadot clamped to their plausible limits
+            if (!std::isfinite(inp.x) || !std::isfinite(inp.xdot) || !std::isfinite(inp.theta) || !std::isfinite(inp.thetadot)) skip = true;
+            else {
+                const F32 xl = cfg::TRACK_LIMIT_M + 0.5f;
+                inp.x = inp.x > xl ? xl : (inp.x < -xl ? -xl : inp.x);
+                inp.thetadot = inp.thetadot > cfg::PLAUS_MAX_RATE ? cfg::PLAUS_MAX_RATE : (inp.thetadot < -cfg::PLAUS_MAX_RATE ? -cfg::PLAUS_MAX_RATE : inp.thetadot);
+            }
         }
         if (!std::isfinite(inp.xdot)) inp.xdot = 0.0f;
         const bool repeat = rt.input_rejects > 0U;
@@ -161,6 +164,10 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
         rt.input_rejects = 0U;
         rt.last_x = inp.x; rt.last_theta = inp.theta; rt.last_thetadot = inp.thetadot; rt.have_last = 1U;
     }
+    if (skip) {                                         // no history and a non-finite sample: nothing safe to feed the law
+        out.force = cfg::SAFE_FORCE_N; out.fault = 1U;
+        if (runtime_fdir(rt) != FDIR_SAFE) encode_state(rt, s);
+    } else {
     State s1 = s, s2 = s; Output o1, o2;
     step(*q1, inp, s1, o1); step(*q2, inp, s2, o2);
     if (o1.force != o2.force || o1.fault != o2.fault || s1.mode != s2.mode) {   // compute-window flip in one lane
@@ -188,6 +195,7 @@ void runtime_control(Runtime& rt, const Params& p1, const Params& p2, State& s, 
         const FdirState fs = runtime_fdir(rt);
         if (fs == FDIR_RECOVERING && ++rt.clean_ticks >= cfg::FDIR_CLEAN_TICKS) fdir_set(rt, FDIR_NOMINAL);
         else if (fs == FDIR_DEGRADED && ++rt.clean_ticks >= cfg::FDIR_DEGRADED_CLEAN_TICKS) fdir_set(rt, FDIR_NOMINAL);
+    }
     }
 #else
     (void)p2;
