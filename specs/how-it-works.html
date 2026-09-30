@@ -49,7 +49,7 @@ ul{margin:0;padding-left:18px;color:var(--mute)}li{margin:0 0 8px}li b{color:var
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Orca assignment · how the system works · 2026-09-30</div>
+  <div class="eyebrow">cartpole-seu · how the system works · 2026-09-30</div>
   <h1>Cart-Pole Soft-Fault System</h1>
   <p class="sub">What one control tick does, what a flipped bit does to it, and where each flip is corrected, caught, or stopped. Every number below comes from this repo's binaries or from a codec probe, except one set of rows labelled historical and three figures from the literature.</p>
   <p class="note" style="margin:0 0 28px">The codec probe is not shipped: about 20 lines of C++ that link <code>fsw/src/Protect.cpp</code> and call <code>secded_encode</code>, <code>secded_decode</code> and <code>crc32c</code> on the golden <code>Params</code> reproduce every §3 value. The literature figures are extended Hamming's 69% triple miscorrection, the share of multi-bit upsets in space memory errors, and the CRC-32C Hamming distance.</p>

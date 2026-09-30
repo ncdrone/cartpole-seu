@@ -115,8 +115,8 @@
 | Term | Expansion | Meaning here |
 |---|---|---|
 | **FSW** | Flight Software | Software that runs on the spacecraft. The `fsw/` directory holds the flight-style core. |
-| **F´ / F Prime** | | NASA JPL's component-based flight software framework. Orca's bus FSW today. Our controller is shaped to become an F´ component. |
-| **cFS / cFE** | core Flight System / core Flight Executive | NASA Goddard's flight software framework and its executive layer. Orca's likely future framework. |
+| **F´ / F Prime** | | NASA JPL's component-based flight software framework. Our controller is shaped to become an F´ component. |
+| **cFS / cFE** | core Flight System / core Flight Executive | NASA Goddard's flight software framework and its executive layer. |
 | **FPP** | F Prime Prime | F´'s component modelling language. Not used here; the README's F´ paragraph lists the ports. |
 | **Component (F´)** | | A unit with typed ports. *Passive* runs on the caller's thread, *active* has its own thread, *queued* has a queue drained by a caller. |
 | **Port (F´)** | | A typed connection between components. |
@@ -238,4 +238,3 @@
 | **`PLAUS_MAX_RATE` / `PLAUS_MAX_XDOT` / `PLAUS_THETA_TOL`** | Input guard limits in `Config.hpp`: 25 rad/s, 10 m/s, 0.05 rad. The position limit is the rail plus 0.5 m (2.9 m). |
 | **DEGRADED** | FDIR state entered on a second detection within the 200-tick window while still RECOVERING. Swing-up is inhibited (a swing-mode tick commands 0 N and sets the fault flag) and the output clamp is halved to 10 N; 200 clean ticks return to NOMINAL; any detection while DEGRADED latches SAFE. |
 | **`STALE_MAX_TICKS`** | The actuator holds a stale command for 10 ticks (100 ms), then applies 0 N. |
-| **Orca** | The company (AI spacecraft operator; F´ bus FSW). |

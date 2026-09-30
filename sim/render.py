@@ -90,7 +90,7 @@ def main():
     readout = ax.text(0.01, 0.95, "", transform=ax.transAxes, family="Menlo", size=10, color=MUTE, va="top")
     ev_txt = ax.text(0.99, 0.95, "", transform=ax.transAxes, family="Menlo", size=10, color=ORANGE, va="top", ha="right")
     fig.text(0.01, 0.975, "●", color=ORANGE, size=9, ha="left", va="top")
-    fig.text(0.03, 0.975, "ORCA · CART-POLE · LQR BASELINE · SIM TIME REPLAY", family="Menlo", size=9, color=MUTE, va="top")
+    fig.text(0.03, 0.975, "CART-POLE · SEU · LQR BASELINE · SIM TIME REPLAY", family="Menlo", size=9, color=MUTE, va="top")
 
     # traces
     def trace(a, key, label, ylim=None):

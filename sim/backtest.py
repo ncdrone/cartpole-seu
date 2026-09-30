@@ -256,7 +256,7 @@ def draw_map(name, cases, results, axes, png, show):
     axs[-1, 0].set_xlabel("θ₀ [deg]  (0 = upright, ±180 = hanging down)")
     ok = sum(1 for r in results if r["outcome"] == "OK")
     fig.text(0.01, 0.985, "●", color=ORANGE, size=9, va="top")
-    fig.text(0.03, 0.985, f"ORCA · CART-POLE · {name.upper()} · SUCCESS {ok}/{len(results)} ({100 * ok / len(results):.0f}%) · NON-MOVING STARTS", family="Menlo", size=9, color=MUTE, va="top")
+    fig.text(0.03, 0.985, f"CART-POLE · SEU · {name.upper()} · SUCCESS {ok}/{len(results)} ({100 * ok / len(results):.0f}%) · NON-MOVING STARTS", family="Menlo", size=9, color=MUTE, va="top")
     handles = [patches.Patch(color=COL[k], label=k) for k in OUTCOMES if any(r["outcome"] == k for r in results)]
     axs[0, 0].legend(handles=handles, loc="upper right", frameon=False, fontsize=8, labelcolor=MUTE, ncol=len(handles))
     fig.tight_layout(rect=(0, 0.02, 1, 0.96))
