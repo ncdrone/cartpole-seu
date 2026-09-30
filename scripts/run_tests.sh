@@ -51,18 +51,18 @@ say "5/7 verification campaign (every word, every bit, both builds)"
 if command -v python3 >/dev/null 2>&1; then
   RC=0; TXT="$(python3 "$ROOT/sim/campaign.py" 2>&1)" || RC=$?
   printf '%s\n' "$TXT" | grep -E "^== |^   set |protected  |baseline  |thresholds|FAIL" | sed 's/^/   /' || true
-  [ "$RC" -eq 0 ] || die "campaign thresholds not met"; ok "campaign thresholds met"
+  [ "$RC" -eq 0 ] || { printf '%s\n' "$TXT" | tail -5 | sed 's/^/     /'; die "campaign thresholds not met"; }; ok "campaign thresholds met"
 else warn "python3 absent: campaign skipped"; fi
 
 say "6/7 back-tests + repro hash"
 if command -v python3 >/dev/null 2>&1; then
-  H="$(python3 "$ROOT/sim/backtest.py" "$ROOT/sim/scenarios/repro.json" --quiet)"
+  H="$(python3 "$ROOT/sim/backtest.py" "$ROOT/sim/scenarios/repro.json" --quiet)" || die "repro hash run failed"
   GH="$ROOT/sim/golden/repro.$ENVCLASS.sha256"
   if [ -f "$GH" ]; then [ "$H" = "$(cat "$GH")" ] && ok "repro hash matches golden ($H)" || die "repro hash $H != golden $(cat "$GH")"; else warn "repro hash $H (no golden for $ENVCLASS)"; fi
   if [ "$QUICK" -eq 0 ]; then
     RC=0; TXT="$(python3 "$ROOT/sim/backtest.py" "$ROOT/sim/scenarios/basin.json" "$ROOT/sim/scenarios/mistune.json" 2>&1)" || RC=$?
     printf '%s\n' "$TXT" | grep -E "^==|success|basin  |mistune  " | sed 's/^/   /' || true
-    [ "$RC" -eq 0 ] || die "back-test failed"
+    [ "$RC" -eq 0 ] || { printf '%s\n' "$TXT" | tail -5 | sed 's/^/     /'; die "back-test failed"; }
     ok "scenarios ran (stats above; CSVs in sim/out/)"
   fi
 else
@@ -73,6 +73,6 @@ say "7/7 deadline sweep (stall recovery at every swept angle)"
 if command -v python3 >/dev/null 2>&1; then
   RC=0; TXT="$(python3 "$ROOT/sim/campaign.py" --deadline 2>&1)" || RC=$?
   printf '%s\n' "$TXT" | sed 's/^/   /'
-  [ "$RC" -eq 0 ] || die "deadline budget not met at every swept angle"; ok "deadline met at every swept angle"
+  [ "$RC" -eq 0 ] || { printf '%s\n' "$TXT" | tail -5 | sed 's/^/     /'; die "deadline budget not met at every swept angle"; }; ok "deadline met at every swept angle"
 else warn "python3 absent: deadline sweep skipped"; fi
 say "all tests passed"

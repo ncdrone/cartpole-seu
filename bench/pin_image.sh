@@ -19,5 +19,5 @@ s2, n = re.subn(r"^FROM debian(:bookworm-slim)?(@sha256:[0-9a-f]+)?[ \t]*$", "FR
 if n != 1:
     sys.exit("pin_image: no matching FROM line in " + p)
 open(p, "w").write(s2)
-print("pinned:", digest)
+print("pinned:", s2.splitlines()[[l.startswith("FROM ") for l in s2.splitlines()].index(True)])
 EOF

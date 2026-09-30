@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Container entrypoint. Commands:
-#   verify                 scripts/run_tests.sh --quick: unit tests (controller, protect, fdir), golden, injector, campaign, repro hash (default)
+#   verify                 run_tests.sh --quick (unit tests, schema, golden, injector sanity, campaign, repro hash, deadline sweep) (default)
 #   tests [--quick]        scripts/run_tests.sh (adds the basin and mistune back-tests)
 #   campaign [args...]     python3 sim/campaign.py <args...>
 #   serve [--port N]       LAN viewer on 0.0.0.0:8080

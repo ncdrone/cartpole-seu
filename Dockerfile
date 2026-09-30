@@ -4,7 +4,7 @@
 # Cross-architecture (arm64 vs amd64) differs only at libm ULP level; the fault list and outcomes match.
 #
 #   docker build -t cartpole .
-#   docker run --rm cartpole                                   # build_demo verify + repro hash
+#   docker run --rm cartpole                                   # run_tests.sh --quick (unit tests, schema, golden, injector sanity, campaign, repro hash, deadline sweep)
 #   docker run --rm -p 8080:8080 cartpole serve                # LAN viewer from the container
 #   docker run --rm cartpole backtest sim/scenarios/grid.json  # any harness command
 #   docker build --platform linux/amd64 -t cartpole:amd64 .    # x86 variant on an Apple Silicon Mac
