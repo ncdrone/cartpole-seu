@@ -105,7 +105,7 @@ say "6/6 ready"
 echo "  run:     fsw/build/cartpole_demo --theta0 0.3 --x0 0.5 --seconds 8 > run.csv      (pure C++, CSV out)"
 echo "  inject:  fsw/build/cartpole_baseline --theta0 0.05 --seconds 6 --flip k2:31 --flip-tick 100   (protected: fsw/build/cartpole_demo, same flags)"
 echo "  tests:   bash scripts/run_tests.sh        visual: --visual | --demo | --serve        container: --docker"
-if [ "$DOCKER" = 1 ]; then say "docker"; docker build -t cartpole "$ROOT" >/dev/null && ok "image cartpole" || die "docker build failed"; docker run --rm cartpole || die "container verify failed"; fi
+if [ "$DOCKER" = 1 ]; then say "docker"; docker build -q -t cartpole "$ROOT" >/dev/null && ok "image cartpole" || die "docker build failed"; docker run --rm cartpole || die "container verify failed"; fi
 if [ "$VISUAL" = 1 ]; then [ "$HAVE_MPL" = 1 ] || die "--visual needs python3 + matplotlib"; python3 "$ROOT/sim/render.py" --theta0 0.6 --x0 -0.5 --seconds 8; fi
 if [ "$SERVE" = 1 ]; then [ "$HAVE_PY" = 1 ] || die "--serve needs python3"
   IP=""; if [ "$OS" = Darwin ]; then IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"; else IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; fi

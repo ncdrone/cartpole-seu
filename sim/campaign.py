@@ -13,6 +13,8 @@ import argparse, csv, io, math, os, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+from backtest import THETA_OK, X_OK, HOLD_S, TRACK   # one settle definition for both harnesses
 BIN = {"protected": os.path.join(ROOT, "fsw", "build", "cartpole_demo"), "baseline": os.path.join(ROOT, "fsw", "build", "cartpole_baseline")}
 PFIELDS = "k0 k1 k2 k3 ki ilim alpha swke swamax swamin swkx swkv sweref swenter swrate swexit mM mm ml mg".split()
 SFIELDS = "integ thdf tick flags".split()
@@ -27,9 +29,9 @@ def run(build, extra, theta0=THETA0, seconds=SECONDS):
         return {"plant": "CRASH", "det": "none", "reload": 0, "fdir": 0, "sec": 0}
     rows = list(csv.DictReader(io.StringIO(r.stdout)))
     th = [math.remainder(float(q["theta"]), 2 * math.pi) for q in rows]; x = [float(q["x"]) for q in rows]
-    hold = int(2.0 / 0.01)
-    settled = all(abs(a) < 0.0873 for a in th[-hold:]) and all(abs(b) < 0.1 for b in x[-hold:])
-    plant = "OK" if settled and max(abs(b) for b in x) <= 2.4 else "FAIL"
+    hold = int(HOLD_S / 0.01)
+    settled = all(abs(a) < THETA_OK for a in th[-hold:]) and all(abs(b) < X_OK for b in x[-hold:])
+    plant = "OK" if settled and max(abs(b) for b in x) <= TRACK else "FAIL"
     dets = [int(q["det"]) for q in rows[TICK:]]
     first = next((d for d in dets if d != 0), 0)
     strongest = max(dets) if dets else 0
@@ -74,7 +76,7 @@ def deadline(jobs):
     cases = [(a, k) for a in angles for k in stalls]
     with ThreadPoolExecutor(max_workers=jobs) as ex:
         res = list(ex.map(lambda c: run("protected", ["--stall", str(c[1])], theta0=math.radians(c[0]), seconds=8.0)["plant"] == "OK", cases))
-    ok = dict(zip(cases, res)); one_deg_met = False
+    ok = dict(zip(cases, res)); all_met = True
     print("\n   deadline sweep (protected build, stall at tick 100, actuator holds 10 ticks then 0 N)")
     print("   theta0    max recoverable stall   budget 300 ms")
     for a in angles:
@@ -83,9 +85,9 @@ def deadline(jobs):
             if not ok[(a, k)]: break
             m = k
         met = m >= budget
-        if a == 1: one_deg_met = met
+        all_met = all_met and met
         print(f"   {a:<2} deg     {m:>3} ticks ({m * 10:>4} ms)      {'met' if met else 'NOT met'}")
-    if not one_deg_met: sys.exit(1)
+    if not all_met: sys.exit(1)
 
 
 def main():

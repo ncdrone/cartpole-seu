@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Container entrypoint. Commands:
-#   verify                 re-run unit tests + golden check + print the repro hash (default)
+#   verify                 scripts/run_tests.sh --quick: unit tests (controller, protect, fdir), golden, injector, campaign, repro hash (default)
+#   tests [--quick]        scripts/run_tests.sh (adds the basin and mistune back-tests)
+#   campaign [args...]     python3 sim/campaign.py <args...>
 #   serve [--port N]       LAN viewer on 0.0.0.0:8080
 #   backtest <args...>     python3 sim/backtest.py <args...>
 #   demo <args...>         fsw/build/cartpole_demo <args...>   (CSV on stdout)
@@ -8,11 +10,7 @@
 set -eu
 cd /work
 case "${1:-verify}" in
-  verify)
-    ./fsw/build/test_controller && ./fsw/build/test_protect | tail -1
-    echo "envclass: $(python3 -c 'import json;print(json.load(open("fsw/build/build_info.json"))["envclass"])')"
-    python3 sim/backtest.py sim/scenarios/repro.json --hash
-    ;;
+  verify)  exec bash scripts/run_tests.sh --quick ;;
   tests)   shift; exec bash scripts/run_tests.sh "$@" ;;
   campaign) shift; exec python3 sim/campaign.py "$@" ;;
   serve)   shift; exec python3 bench/serve.py "$@" ;;

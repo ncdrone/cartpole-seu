@@ -4,7 +4,7 @@
   python3 sim/backtest.py sim/scenarios/grid.json          # one scenario
   python3 sim/backtest.py --all                            # every sim/scenarios/*.json, stats after each
   python3 sim/backtest.py sim/scenarios/grid.json --show   # also open the basin map
-  python3 sim/backtest.py sim/scenarios/rate.json --set seconds=6 --set dt=0.005,0.01,0.02
+  python3 sim/backtest.py bench/rate.json --set seconds=6 --set dt=0.005,0.01,0.02
 
 A scenario is a JSON object of AXES. Every axis is a list (or a {start,stop,step}
 range); the harness runs the cartesian product and prints stats after the run,
@@ -225,11 +225,15 @@ def write_csv(path, cases, results):
 
 def draw_map(name, cases, results, axes, png, show):
     """theta0 x x0 outcome map; one panel per combination of the other varying axes (max 6)."""
-    import matplotlib
-    if not show:
-        matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from matplotlib import patches
+    try:
+        import matplotlib
+        if not show:
+            matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from matplotlib import patches
+    except ImportError:
+        print("   map        skipped (matplotlib not installed)")
+        return False
     BG, PANEL, LINE, INK, MUTE, DIM, ORANGE = "#080808", "#0d0d10", "#242429", "#f2f2f2", "#9a9aa2", "#55555c", "#ff6b35"
     COL = {"OK": "#33ff33", "TRACK_EXIT": "#4a5568", "NOT_SETTLED": "#ff3355", "FAULT": "#ff6b35", "NAN": "#ff6b35"}
     plt.rcParams.update({"figure.facecolor": BG, "axes.facecolor": PANEL, "axes.edgecolor": LINE, "axes.labelcolor": MUTE,
@@ -259,6 +263,7 @@ def draw_map(name, cases, results, axes, png, show):
     fig.savefig(png, dpi=130, facecolor=BG)
     if show:
         plt.show()
+    return True
 
 
 def run_scenario(path, a):
@@ -299,8 +304,8 @@ def run_scenario(path, a):
     print(f"   csv        {os.path.relpath(csv_path, ROOT)}")
     if len(axes["theta0_deg"]) > 1 and "samples" not in sc:
         png = os.path.join(OUT, f"{sc['name']}.png")
-        draw_map(sc["name"], cases, results, axes, png, a.show)
-        print(f"   map        {os.path.relpath(png, ROOT)}")
+        if draw_map(sc["name"], cases, results, axes, png, a.show):
+            print(f"   map        {os.path.relpath(png, ROOT)}")
     return sc["name"], len(results), sum(1 for r in results if r["outcome"] == "OK")
 
 

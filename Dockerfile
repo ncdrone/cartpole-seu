@@ -9,8 +9,8 @@
 #   docker run --rm cartpole backtest sim/scenarios/grid.json  # any harness command
 #   docker build --platform linux/amd64 -t cartpole:amd64 .    # x86 variant on an Apple Silicon Mac
 #
-# Pin by digest before shipping: `bash scripts/pin_image.sh` rewrites the FROM line with the current digest.
-FROM debian@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+# Pin by digest before shipping: `bash bench/pin_image.sh` rewrites the FROM line with the current digest.
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         g++ cmake make python3 ca-certificates \

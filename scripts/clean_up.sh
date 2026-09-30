@@ -12,7 +12,7 @@
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DOCKER=0; REMOTE=0; YES=0; DRY=0
-REMOTE_HOSTS="${REMOTE_HOSTS:-frame orion}"
+REMOTE_HOSTS="${REMOTE_HOSTS:-}"
 for a in "$@"; do
   case "$a" in
     --docker) DOCKER=1 ;; --remote) REMOTE=1 ;; --all) DOCKER=1; REMOTE=1 ;;
@@ -59,7 +59,9 @@ if [ "$DOCKER" -eq 1 ]; then
 else skip "not requested (--docker)"; fi
 
 say "4/4 remote copies on boards"
-if [ "$REMOTE" -eq 1 ]; then
+if [ "$REMOTE" -eq 1 ] && [ -z "$REMOTE_HOSTS" ]; then
+  skip "no hosts: set REMOTE_HOSTS='h1 h2' and re-run with --remote"
+elif [ "$REMOTE" -eq 1 ]; then
   for h in $REMOTE_HOSTS; do
     if [ "$DRY" -eq 1 ]; then echo "  would run on $h: rm -rf ~/orca-cartpole"
     elif confirm "delete ~/orca-cartpole on $h?"; then
